@@ -1,0 +1,54 @@
+import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcryptjs';
+import { UserService } from '@/system/user/user.service';
+import { LoginDto } from './dto/login.dto';
+import CreateUserDto from '@/system/user/dto/create-user.dto';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly userService: UserService,
+    @Inject('ACCESS_JWT') private readonly accessJwtService: JwtService,
+    @Inject('REFRESH_JWT') private readonly refreshJwtService: JwtService,
+  ) {}
+
+  // 注册用户
+  async register(createUserDto: CreateUserDto){
+    const newUser = await this.userService.create(createUserDto);
+    return newUser;
+  }
+
+  async validateUser(userAccount: string, pass: string): Promise<any> {
+    const user = await this.userService.getByAccount(userAccount);
+    if (user && (await bcrypt.compare(pass, user.password))) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...result } = user;
+      return result;
+    }
+    return null;
+  }
+
+  async login(loginDto: LoginDto) {
+    const user = await this.validateUser(loginDto.account, loginDto.password);  
+    if (!user) {
+      throw new UnauthorizedException('用户名或密码错误');
+    }
+    const payload = { username: user.account, sub: user.id }; 
+    return {
+      access_token: await this.accessJwtService.signAsync(payload),
+      refresh_token: await this.refreshJwtService.signAsync(payload),
+    };
+  }
+
+  async refresh(refreshToken: string) {
+    try {
+      const payload = await this.refreshJwtService.verifyAsync(refreshToken);
+      const newAccessToken = await this.accessJwtService.signAsync({ username: payload.username, sub: payload.sub });
+      return { access_token: newAccessToken };
+    } catch (error) {
+      throw new UnauthorizedException('刷新令牌无效');
+    }
+  }
+
+}
