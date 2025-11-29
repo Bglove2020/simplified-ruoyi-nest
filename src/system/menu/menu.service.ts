@@ -18,9 +18,7 @@ export class MenuService {
   ) {}
 
   async create(createMenuDto: CreateMenuDto) {
-    console.log('createMenuDto:', createMenuDto);
     const menu = this.menuRepository.create(createMenuDto);
-    console.log('menu:', menu);
     if (createMenuDto.parentPublicId) {
       const parentMenu = await this.menuRepository.findOne({ where: { publicId: createMenuDto.parentPublicId } });
       if (!parentMenu) {
@@ -50,7 +48,6 @@ export class MenuService {
     const menus = await this.menuRepository.find({
       where: { delFlag: '0' },
     });
-    console.log('menus:', menus);
     return buildTree<SysMenu, FrontendMenuDto>(menus, toFrontendDto);
   }
 

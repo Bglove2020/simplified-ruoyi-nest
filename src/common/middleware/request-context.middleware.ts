@@ -11,6 +11,7 @@ export class RequestContextMiddleware implements NestMiddleware {
     const h = req.headers['x-request-id'];
     const rid = typeof h === 'string' ? h : randomUUID();
     res.setHeader('X-Request-Id', rid);
+    // userId 会在 JwtAuthGuard 中通过 updateContext 设置
     this.als.run({ requestId: rid }, () => next());
   }
 }

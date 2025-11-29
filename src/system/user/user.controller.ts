@@ -8,6 +8,7 @@ import { LoggingService } from '@/common/logging/logging.service';
 import { SysUser } from './entities/user.entity';
 import { Public } from '@/auth/public.decorator';
 import FrontendUserDto from './dto/frontend-user.dto';
+import { agent } from 'supertest';
 
 @Controller('/system/user')
 export class UserController {
@@ -16,11 +17,10 @@ export class UserController {
   @Get('list')
   async list(): Promise<FrontendUserDto[]>{
     // 记录查询参数
-    this.loggingService.log('GET /system/user/list');
+    this.loggingService.log('GET /system/user/list',{query: {name: 'list',agent: 'list'},responseDescriptor: {type: 'list',count: 0}});
     let users: SysUser[] = [];
     try{
       users = await this.userService.list(); 
-      console.log('users:', users);
     }
     catch(error){
       this.loggingService.error('GET /system/user/list error', error);
@@ -38,15 +38,12 @@ export class UserController {
   @Public()
   @Get('checkUserAccount')
   async getByAccount(@Query('account') account: string) {
-    console.log(account);
     const user = await this.userService.getByAccount(account);
-    console.log(user);
     return user ? { available: false, msg: '账号已存在' } : { available: true, msg: '账号可用' };
   }
 
   @Post('reset-password')
   async resetPassword(@Body() resetPasswordDto: ResetUserPasswordDto) {
-    console.log(resetPasswordDto);
     return await this.userService.resetPassword(resetPasswordDto) ? { success: true,msg: '密码重置成功' } : { success: false,msg: '密码重置失败' };
   }
 
