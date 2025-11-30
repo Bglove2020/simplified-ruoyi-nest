@@ -26,12 +26,6 @@ export class DeptController {
     this.loggingService.log('GET /system/dept/list success', {responseDescriptor: {type: 'list',count: result.length}});
     return result;
   }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.deptService.findOne(+id);
-  }
-
   
   @Post('update')
   update(@Body() updateDeptDto: UpdateDeptDto) {

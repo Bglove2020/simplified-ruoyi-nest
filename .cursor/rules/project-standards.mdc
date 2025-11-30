@@ -1,0 +1,21 @@
+---
+alwaysApply: true
+---
+
+## controller返回规范
+1. 返回值为一个对象，对象中至少需要包含success和msg字段。success的值类型为boolean，表示这个操作执行是否成功。msg字段用于返回给前端的toast提示本次操作是否成功。
+2. 如果返回其他数据时，将其他数据作为data字段的属性进行返回。
+3. 整体返回的对象格式为{success：boolean ， msg：string ， data?:any}
+
+
+## NestJS service层规范
+
+### 目标 
+Service 专注于业务，执行业务逻辑、与业务逻辑不相符时抛出异常、对执行依赖产生的错误进行转换。
+
+### 具体任务
+1. 接收 DTO，返回 Entity/数组/数字/boolean/void。
+2. 使用 try...catch 封装所有外部依赖操作（DB、第三方 API、缓存）。将底层依赖错误（如 TypeORM 约束、API 401 错误）映射为语义化的 HttpException并抛出。
+3. 业务逻辑执行失败时，直接 throw 语义化的 HttpException。
+4. 一个service执行失败时一定抛出异常。
+5. 不进行异常日志记录，只负责抛出。

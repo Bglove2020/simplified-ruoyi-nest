@@ -6,7 +6,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinTable,
+  BeforeInsert,
 } from 'typeorm';
+import { randomUUID } from 'crypto';
 import { SysUser } from '@/system/user/entities/user.entity';
 import { SysMenu } from '@/system/menu/entities/menu.entity';
 
@@ -19,6 +21,7 @@ export class SysRole {
 
   @Column({
     name: 'public_id',
+    unique: true,
     comment: '角色公开id，唯一且与id一一对应，用于对外暴露',
   })
   publicId: string;
@@ -89,4 +92,11 @@ export class SysRole {
     inverseJoinColumn: { name: 'menu_id'},
   })
   menus: SysMenu[];
+
+  @BeforeInsert()
+  setPublicId() {
+    if (!this.publicId) {
+      this.publicId = randomUUID();
+    }
+  }
 }

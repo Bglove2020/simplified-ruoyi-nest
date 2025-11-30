@@ -66,9 +66,9 @@ export class DeptService {
     return buildTree<SysDept, FrontendDeptDto>(flatData, toFrontendDeptDto);
   }
 
-  findOne(id: number) {
-    return this.deptRepository.findOne({ where: { id }, relations: { leader: true } });
-  }
+  // findOne(id: number) {
+  //   return this.deptRepository.findOne({ where: { id }, relations: { leader: true } });
+  // }
 
   async update(updateDeptDto: UpdateDeptDto) {
     // 根据publicId查询部门
@@ -152,16 +152,11 @@ export class DeptService {
     });
 
     // 软删除所有相关用户
-    users.forEach(user => {
-      user.delFlag = '1';
-    });
+    await this.userRepository.softRemove(users);
 
     try {
       // 批量保存（当前部门 + 所有子部门 + 所有用户）
       await this.deptRepository.save([dept, ...childDepts]);
-      if (users.length > 0) {
-        await this.userRepository.save(users);
-      }
       
       const childCount = childDepts.length;
       const userCount = users.length;

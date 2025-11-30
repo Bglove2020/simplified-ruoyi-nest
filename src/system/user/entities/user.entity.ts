@@ -11,12 +11,16 @@ import {
   UpdateDateColumn,
   RelationId,
   BeforeInsert,
+  Index,
+  DeleteDateColumn,
 } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { SysDept } from '@/system/dept/entities/dept.entity';
 import { SysRole } from '@/system/role/entities/role.entity';
 
 @Entity('sys_user')
+@Index(['account', 'deletedAt'], { unique: true })
+@Index(['email', 'deletedAt'], { unique: true })
 export class SysUser {
   // 使用装饰器：@PrimaryGeneratedColumn，修饰的字段为主键，且自增。
   // @PrimaryGeneratedColumn装饰器可以传入一个Column options对象，用于配置主键列的行为。
@@ -35,10 +39,10 @@ export class SysUser {
   @Column({length: 255,comment: '用户名称' })
   name: string;
 
-  @Column({length: 255, unique: true ,comment: '用户账号'})
+  @Column({length: 255 ,comment: '用户账号'})
   account: string;
 
-  @Column({length: 255, unique: true ,comment: '用户邮箱' })
+  @Column({length: 255 ,comment: '用户邮箱' })
   email: string;
 
   @Column({
@@ -61,13 +65,8 @@ export class SysUser {
   })
   status: string;
 
-  @Column({
-    name: 'del_flag',
-    length: 1,
-    default: '0',
-    comment: '删除标志（0存在 1删除）',
-  })
-  delFlag: string;
+  @DeleteDateColumn({ name: 'deleted_at', type: 'datetime', comment: '删除时间' })
+  deletedAt: Date | null;
 
   @Column({ name: 'login_ip', length: 128, default: '', comment: '最后登录IP' })
   loginIp: string;
@@ -152,4 +151,7 @@ export class SysUser {
     inverseJoinColumns: [{ name: 'role_id' }], // 同上
   })
   roles: SysRole[];
+
+  @OneToMany(() => SysDept, (dept) => dept.leader)
+  leaderDepts: SysDept[];
 }

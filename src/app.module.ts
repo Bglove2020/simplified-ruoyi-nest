@@ -11,12 +11,14 @@ import { AlsModule } from './common/als/als.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { LoggingService } from './common/logging/logging.service';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
-import { SqlExceptionFilter } from './common/filters/sql-exception.filter';
+// import { SqlExceptionFilter } from './common/filters/sql-exception.filter';
 import { DeptModule } from './system/dept/dept.module';
 import { MenuModule } from './system/menu/menu.module';
 import { TypeOrmLoggerService } from './common/typeorm/typeorm-logger.service';
+import { RoleModule } from './system/role/role.module';
+import { AllExceptionsFilter } from './common/filters/all-exception.filter';
 
-@Module({
+@Module({ 
   imports: [
     ConfigModule.forRoot({
       // 这里根据 NODE_ENV 加载不同的环境变量文件，再默认加载 .env。如果不同文件中有同名变量，会保留优先加载的文件中的值，不会被后面的文件覆盖。
@@ -55,7 +57,7 @@ import { TypeOrmLoggerService } from './common/typeorm/typeorm-logger.service';
           // 慢查询阈值：查询执行时间超过此值（毫秒）时，会触发 logQuerySlow 方法
           // TypeORM 会自动测量查询执行时间，如果超过此阈值，会自动调用 logger.logQuerySlow()
           maxQueryExecutionTime: enableSqlLogging ? maxQueryExecutionTime : undefined,
-          // synchronize: true, // 建议仅在开发环境开启
+          synchronize: true, // 建议仅在开发环境开启
           // dropSchema: true, // 建议仅在开发环境开启
         };
       },
@@ -66,12 +68,13 @@ import { TypeOrmLoggerService } from './common/typeorm/typeorm-logger.service';
     AlsModule,
     LoggingModule,
     DeptModule,
-    MenuModule
+    MenuModule,
+    RoleModule
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     RequestContextMiddleware,
-    { provide: APP_FILTER, useClass: SqlExceptionFilter },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
 export class AppModule implements NestModule {
