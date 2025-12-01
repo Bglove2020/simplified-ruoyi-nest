@@ -37,7 +37,7 @@ export class TypeOrmLoggerService implements Logger {
    * - 方法必须实现（TypeORM Logger 接口要求），但可以为空实现
    */
   logQuery(query: string, parameters?: any[], queryRunner?: QueryRunner) {
-    // // 如果配置为不记录所有查询，则直接返回（空实现）
+    // 如果配置为不记录所有查询，则直接返回（空实现）
     // if (!this.logAllQueries) {
     //   return;
     // }

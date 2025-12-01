@@ -7,6 +7,7 @@ import CreateUserDto from './dto/create-user.dto';
 import ResetUserPasswordDto from './dto/reset-user-password.dto';
 import UpdateUserDto from './dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
+import { SysRole } from '../role/entities/role.entity';
 
 @Injectable()
 export class UserService {
@@ -15,12 +16,15 @@ export class UserService {
     private userRepository: Repository<SysUser>,
     @InjectRepository(SysDept)
     private deptRepository: Repository<SysDept>,
+    @InjectRepository(SysRole)
+    private roleRepository: Repository<SysRole>,
   ) {}
 
   async list(): Promise<SysUser[]> {
     return this.userRepository.find({
       relations: {
         dept: true,
+        roles: true,
       },
     });
   }
@@ -30,6 +34,7 @@ export class UserService {
       where: { publicId },
       relations: {
         dept: true,
+        roles: true,
       },
     });
   }
@@ -37,6 +42,10 @@ export class UserService {
   async getByAccount(account: string): Promise<SysUser | null> {
     return this.userRepository.findOne({
       where: { account },
+      relations: {
+        dept: true,
+        roles: true,
+      },
     });
   }
 
@@ -53,6 +62,19 @@ export class UserService {
     } else {
       dept = { id: 1 };
     }
+
+    let roles: SysRole[] = [];
+    if (createUserDto.rolePublicIds && createUserDto.rolePublicIds.length > 0) {
+      roles = await this.roleRepository.find({
+        where: { publicId: In(createUserDto.rolePublicIds) },
+      }); 
+      if (roles.length !== createUserDto.rolePublicIds.length) {
+        throw new BadRequestException('部分角色不存在');
+      }
+    } else {
+      throw new BadRequestException('用户角色不能为空');
+    }
+
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
     const user = this.userRepository.create({
       account: createUserDto.account,
@@ -62,6 +84,7 @@ export class UserService {
       password: hashedPassword,
       // 没有部门id的话，就默认设置为根部门
       dept: dept,
+      roles: roles,
       avatar: createUserDto.avatar,
       status: '1', // 默认状态为正常
       createBy: 'system', // 系统创建
@@ -143,73 +166,66 @@ export class UserService {
     }
   }
 
-  async update(
-    updateUserDto: UpdateUserDto,
-  ): Promise<{ success: boolean; msg: string }> {
+  async update(updateUserDto: UpdateUserDto){
     // 检查用户是否存在
+    console.log('updateUserDto.publicId',updateUserDto.publicId);
     let user: SysUser | null = null;
     try{
       user = await this.userRepository.findOne({
         where: { publicId: updateUserDto.publicId },
+        relations: {
+          dept: true,
+          roles: true,
+        },
       });
+      console.log('user',user);
     }catch(e: any){
-      return { success: false, msg: '系统异常' };
+      throw new BadRequestException({msg: '数据库查询错误', code: 400});
     }
+
     if (!user) {
-      return { success: false, msg: '用户不存在' };
+      throw new BadRequestException({msg: '用户不存在', code: 400});
     }
 
-    // 遍历 updateUserDto 的所有键，针对不同字段单独处理
-    for (const key in updateUserDto) {
-      if (
-        updateUserDto.hasOwnProperty(key) &&
-        updateUserDto[key] !== undefined
-      ) {
-        switch (key) {
-          case 'publicId':
-            // publicId 用于查询，不需要更新
-            break;
+    const { deptPublicId, rolePublicIds, ...rest } = updateUserDto;
+    Object.assign(user, rest);
 
-          case 'deptPublicId':
-            // 处理部门：将 deptPublicId 转换为 dept 对象
-            // 只有当部门发生变化时才查询
-            if (user.dept?.publicId !== updateUserDto.deptPublicId) {
-              const dept = await this.deptRepository.findOne({
-                where: {
-                  publicId: updateUserDto.deptPublicId,
-                  deleteFlag: '0',
-                },
-              });
-              if (!dept) {
-                throw new BadRequestException('部门不存在');
-              }
-              user.dept = dept;
-            }
-            break;
-          default:
-            // 其他字段直接赋值
-            (user as any)[key] = updateUserDto[key];
-            break;
+    // 如果有deptPublicId，且与当前院系不同，则更新院系
+    if (updateUserDto.deptPublicId && updateUserDto.deptPublicId !== user.dept?.publicId) {
+      try{
+        const dept = await this.deptRepository.findOne({
+          where: { publicId: updateUserDto.deptPublicId },
+        });
+        if (!dept) {
+          throw new BadRequestException({msg: '部门不存在', code: 400});
         }
+        user.dept = dept;
+      }catch(e: any){
+        throw new BadRequestException({msg: '数据库查询错误', code: 400});
       }
     }
 
+    // 如果有rolePublicIds，则更新角色，不需要不同
+    if (updateUserDto.rolePublicIds) {
+      try{
+        const roles = await this.roleRepository.find({
+          where: { publicId: In(updateUserDto.rolePublicIds) },
+        });
+        if (roles.length !== updateUserDto.rolePublicIds.length) {
+          throw new BadRequestException({msg: '部分角色不存在', code: 400});
+        }
+        console.log('updateUserDto.rolePublicIds:',updateUserDto.rolePublicIds);
+        console.log('roles:',roles);
+        user.roles = roles;
+      }catch(e: any){
+        throw new BadRequestException({msg: '数据库查询错误', code: 400});
+      }
+    }
+    console.log('user:',user);
     try {
       await this.userRepository.save(user);
-      return { success: true, msg: '用户更新成功' };
     } catch (e: any) {
-      const code = e?.code;
-      const msg = String(e?.sqlMessage || e?.message || '');
-      if (code === 'ER_DUP_ENTRY') {
-        if (updateUserDto.account && msg.includes(updateUserDto.account)) {
-          throw new BadRequestException('账号已存在');
-        }
-        if (updateUserDto.email && msg.includes(updateUserDto.email)) {
-          throw new BadRequestException('邮箱已存在');
-        }
-        throw new BadRequestException('系统异常');
-      }
-      throw e;
+      throw new BadRequestException({msg: '数据库更新错误', code: 400});
     }
   }
 }

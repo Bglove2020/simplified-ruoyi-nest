@@ -40,7 +40,6 @@ export class RoleService {
       sortOrder: createRoleDto.sortOrder,
       dataScope: createRoleDto.dataScope,
       status: createRoleDto.status,
-      delFlag: '0', // 默认未删除
       createBy: 'system', // 系统创建
       updateBy: 'system',
       menus: menus, // 关联菜单
@@ -72,7 +71,6 @@ export class RoleService {
 
   list() {
     return this.roleRepository.find({
-      where: { delFlag: '0' }, 
       // 指定要添加的关系
       relations: {
         menus: true,
@@ -125,7 +123,7 @@ export class RoleService {
 
   async delete(publicId: string) {
     const role = await this.roleRepository.findOne({ 
-      where: { publicId: publicId, delFlag: '0' } ,
+      where: { publicId: publicId } ,
       relations: {
         users: true,
       },
@@ -134,9 +132,8 @@ export class RoleService {
     if(!role || role.users.length > 0){
       return { success: false, msg: '角色存在用户，不能删除' };
     }
-    role.delFlag = '1';
     try{
-      await this.roleRepository.save(role);
+      await this.roleRepository.softRemove(role);
       return { success: true, msg: '角色删除成功' };
     }catch(e: any){
       return { success: false, msg: '角色删除失败' };

@@ -1,77 +1,86 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { LoggingService } from '../logging/logging.service';
 
-// 空参数表示拦截所有的异常
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-
-    constructor(
-        private readonly loggingService: LoggingService
-    ) {}
+  constructor(private readonly loggingService: LoggingService) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
     const request = ctx.getRequest();
 
+    const status = exception instanceof HttpException
+      ? exception.getStatus()
+      : HttpStatus.INTERNAL_SERVER_ERROR;
 
-
-    console.log(exception);
-    // 打印 exception 对象的所有可用信息
-    if (exception instanceof HttpException) {
-      // HttpException有响应体和状态码
-      const res = exception.getResponse();
-      const msg = exception.message;
-      const name = exception.name;
-      const status = exception.getStatus();
-      console.log('HttpException Info:');
-      console.log('name:', name);
-      console.log('message:', msg);
-      console.log('status:', status);
-      console.log('getResponse():', res);
-      if (typeof res === 'object') {
-        console.log('Response keys:', Object.keys(res as any));
-      }
-    } else if (exception instanceof Error) {
-      // 标准Error对象
-      console.log('Error Info:');
-      console.log('name:', exception.name);
-      console.log('message:', exception.message);
-      console.log('stack:', exception.stack);
-      // 打印所有自有属性
-      for (const key of Object.keys(exception)) {
-        console.log(`exception property: ${key}`);
-        // @ts-ignore
-        console.log(`${key}:`, (exception as any)[key]);
-      }
-    } else if (typeof exception === 'object' && exception !== null) {
-      // 其它对象类型
-      console.log('Unknown Exception Object, keys:', Object.keys(exception as any));
-      for (const key of Object.keys(exception as any)) {
-        // @ts-ignore
-        console.log(`${key}:`, (exception as any)[key]);
-      }
-    } else {
-      // 字符串、数字等
-      console.log('Raw exception:', exception);
-    }
-
-    // --- 核心日志记录 ---
-    const errorData = {
-        errorName: (exception as Error).name,
-        errorMessage: (exception as Error).message,
-        errorStack: (exception as Error).stack,
-    };
+    const errorData = this.buildErrorPayload(exception);
     this.loggingService.error(`${request.method} ${request.url}`, errorData);
 
-    // console.log('errorData:', errorData);
+    const body = this.buildResponseBody(exception, status, request?.url);
+    response.status(status).json(body);
+  }
 
-    // ... 格式化响应体并发送给客户端
-    const status = exception instanceof HttpException ? exception.getStatus() : 500;
-    const responseBody = exception instanceof HttpException ? exception.getResponse() : {
-      code: 500,
-      msg: '系统异常',
+  private buildErrorPayload(exception: unknown) {
+    if (exception instanceof HttpException) {
+      return {
+        name: exception.name,
+        message: exception.message,
+        stack: exception.stack,
+        status: exception.getStatus(),
+        response: exception.getResponse(),
+      };
+    }
+
+    if (exception instanceof Error) {
+      return {
+        name: exception.name,
+        message: exception.message,
+        stack: exception.stack,
+      };
+    }
+
+    const normalized =
+      typeof exception === 'string'
+        ? exception
+        : typeof exception === 'object'
+          ? JSON.stringify(exception)
+          : String(exception);
+
+    return {
+      name: 'NonErrorException',
+      message: normalized,
     };
-    response.status(status).json(responseBody);
+  }
+
+  private buildResponseBody(exception: unknown, status: number, path: string) {
+    const base = {
+      statusCode: status,
+      path,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (exception instanceof HttpException) {
+      const res = exception.getResponse();
+      if (typeof res === 'string') {
+        return { ...base, message: res };
+      }
+
+      if (typeof res === 'object') {
+        const body: Record<string, unknown> = { ...base, ...(res as object) };
+        if (!body.message) {
+          body.message = exception.message;
+        }
+        return body;
+      }
+    }
+
+    return { ...base, message: '系统异常' };
   }
 }

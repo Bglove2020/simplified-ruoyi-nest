@@ -23,7 +23,6 @@ const LEVEL_LABELS: Record<number, string> = {
  * 对象属性以缩进和换行的方式展示
  */
 function formatLogEntry(log: Record<string, any>): string {
-  console.log('formatLogEntry', log);
   const { time, level, msg, requestId, userPublicId,query, ...rest } = log;
   const levelLabel = LEVEL_LABELS[level] || 'INFO';
 
@@ -32,9 +31,9 @@ function formatLogEntry(log: Record<string, any>): string {
 
   // 构建基础日志行
   let output = `[${timestamp}] ${levelLabel.padEnd(5)}`;
-  output += ` ${msg}\n`;
+  output += ` ${msg}`;
   if (requestId) {
-    output += `[requestId:${requestId}]`;
+    output += `\n[requestId:${requestId}]`;
   }
   if (userPublicId) {
     output += ` [userPublicId:${userPublicId}]`;
@@ -47,7 +46,7 @@ function formatLogEntry(log: Record<string, any>): string {
   if (Object.keys(rest).length > 0) {
     output += '\n' + JSON.stringify(rest, null, 2);
   }
-
+  output += '\n';
   return output;
 }
 
@@ -192,7 +191,6 @@ export class LoggingService implements LoggerService {
   }
 
   private write(level: Level, message: string, args: any[]) {
-    console.log('write', level, message, args);
     const payload = this.normalizePayload(args);
     if (payload) {
       this.logger[level](payload, message);

@@ -8,11 +8,16 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   BeforeInsert,
+  DeleteDateColumn,
+  Index,
 } from 'typeorm';
 import { SysRole } from '@/system/role/entities/role.entity';
 import { randomUUID } from 'node:crypto';
 
 @Entity('sys_menu')
+@Index(['name', 'deletedAt'], { unique: true })
+@Index(['path', 'deletedAt'], { unique: true })
+@Index(['perms', 'deletedAt'], { unique: true })
 export class SysMenu {
   @PrimaryGeneratedColumn({
     comment: '菜单id，有序，自增，非uuid',
@@ -26,7 +31,7 @@ export class SysMenu {
   })
   publicId: string;
 
-  @Column({length: 50, comment: '菜单名称', unique: true })
+  @Column({length: 50, comment: '菜单名称' })
   name: string;
 
   @Column({ name: 'parent_id', default: 0, comment: '父菜单ID' })
@@ -38,7 +43,7 @@ export class SysMenu {
   @Column({ name: 'sort_order', type: 'int', comment: '显示顺序' })
   sortOrder: number;
 
-  @Column({ name: 'path',type: 'varchar', length: 200, comment: '路由地址',nullable: true, unique: true })
+  @Column({ name: 'path',type: 'varchar', length: 200, comment: '路由地址',nullable: true })
   path: string | null;
 
   @Column({
@@ -73,15 +78,10 @@ export class SysMenu {
   })
   status: string;
 
-  @Column({
-    name: 'del_flag',
-    length: 1,
-    default: '0',
-    comment: '删除标志（0存在 1删除）',
-  })
-  delFlag: string;
+  @DeleteDateColumn({ name: 'deleted_at', type: 'datetime', comment: '删除时间' })
+  deletedAt: Date | null;
 
-  @Column({ name: 'perms', type: 'varchar', length: 100, nullable: true, comment: '权限标识', unique: true })
+  @Column({ name: 'perms', type: 'varchar', length: 100, nullable: true, comment: '权限标识' })
   perms: string | null;
 
   // @Column({ name: 'icon', length: 100, default: '#', comment: '菜单图标' })

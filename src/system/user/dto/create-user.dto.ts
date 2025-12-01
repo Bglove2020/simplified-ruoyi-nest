@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsIn } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsIn, IsArray } from 'class-validator';
 import { IsPassword, ISAccount } from 'src/common/common/validatie-dto.decorator';
 
 export default class CreateUserDto{
@@ -27,4 +27,8 @@ export default class CreateUserDto{
     @IsNotEmpty({ message: '用户头像不能为空' })
     @IsString({ message: '用户头像必须是字符串' })
     avatar: string;
+
+    @IsArray({ message: '用户角色必须是数组' })
+    @IsString({ each: true, message: '用户角色必须是字符串' })
+    rolePublicIds: string[];
 }

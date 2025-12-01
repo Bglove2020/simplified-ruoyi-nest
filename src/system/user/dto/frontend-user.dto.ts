@@ -8,4 +8,5 @@ export default class FrontendUserDto{
     status: string;
     deptPublicId: string;
     deptName: string;
+    rolePublicIds: string[];
 }

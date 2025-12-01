@@ -83,10 +83,10 @@ export class UserController {
 
   @Post('update')
   async update(@Body() updateUserDto: UpdateUserDto) {
-    if(!updateUserDto.publicId){
-      return { success: false, msg: '用户不存在' };
-    }
-    return await this.userService.update(updateUserDto);
+    this.loggingService.log('POST /system/user/update', {requestDescriptor: {data: updateUserDto}});
+    await this.userService.update(updateUserDto);
+    this.loggingService.log('POST /system/user/update success');
+    return {success: true, msg: '用户更新成功'};
   }
 
   @Delete('delete/:publicId')

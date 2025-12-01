@@ -9,6 +9,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   BeforeInsert,
+  DeleteDateColumn,
 } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { SysUser } from '@/system/user/entities/user.entity';
@@ -77,6 +78,13 @@ export class SysDept {
     comment: '更新者',
   })
   updateBy: string;
+    
+  @Column({
+    name: 'create_by',
+    nullable: true,
+    comment: '创建者',
+  })
+  createBy: string;
 
   @CreateDateColumn({
     name: 'create_time',
@@ -92,11 +100,8 @@ export class SysDept {
   })
   updateTime: Date;
 
-  @Column({
-    name: 'delete_flag',
-    comment: '删除标志（0代表存在，1代表删除）',
-  })
-  deleteFlag: string;
+  @DeleteDateColumn({ name: 'deleted_at', type: 'datetime', comment: '删除时间' })
+  deletedAt: Date | null;
 
   @BeforeInsert()
   setPublicId() {

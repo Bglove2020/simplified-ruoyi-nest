@@ -1,4 +1,4 @@
-import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule, OnApplicationBootstrap } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { APP_FILTER } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -17,6 +17,11 @@ import { MenuModule } from './system/menu/menu.module';
 import { TypeOrmLoggerService } from './common/typeorm/typeorm-logger.service';
 import { RoleModule } from './system/role/role.module';
 import { AllExceptionsFilter } from './common/filters/all-exception.filter';
+import { DatabaseSeedService } from './common/database/database.seed.service';
+import { SysUser } from './system/user/entities/user.entity';
+import { SysRole } from './system/role/entities/role.entity';
+import { SysDept } from './system/dept/entities/dept.entity';
+import { SysMenu } from './system/menu/entities/menu.entity';
 
 @Module({ 
   imports: [
@@ -57,13 +62,15 @@ import { AllExceptionsFilter } from './common/filters/all-exception.filter';
           // 慢查询阈值：查询执行时间超过此值（毫秒）时，会触发 logQuerySlow 方法
           // TypeORM 会自动测量查询执行时间，如果超过此阈值，会自动调用 logger.logQuerySlow()
           maxQueryExecutionTime: enableSqlLogging ? maxQueryExecutionTime : undefined,
-          synchronize: true, // 建议仅在开发环境开启
+          // synchronize: true, // 建议仅在开发环境开启
           // dropSchema: true, // 建议仅在开发环境开启
         };
       },
       // 注入 ConfigService 和 LoggingService 才能在 useFactory 中使用
       inject: [ConfigService, LoggingService], 
     }),
+    // 注册实体以便DatabaseSeedService使用
+    TypeOrmModule.forFeature([SysUser, SysRole, SysDept, SysMenu]),
     AuthModule,
     AlsModule,
     LoggingModule,
@@ -75,10 +82,31 @@ import { AllExceptionsFilter } from './common/filters/all-exception.filter';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     RequestContextMiddleware,
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    DatabaseSeedService,
   ],
 })
-export class AppModule implements NestModule {
+export class AppModule implements NestModule, OnApplicationBootstrap {
+  constructor(
+    private readonly seedService: DatabaseSeedService
+  ) {}
+
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+
+  /**
+   * 应用完全启动后执行数据库种子数据初始化
+   * 
+   * 说明：
+   * - onApplicationBootstrap 在所有模块初始化完成、应用完全启动后调用
+   * - TypeORM 的 forRootAsync 是异步的，NestJS 会等待其完成后再调用此钩子
+   * - 因此此时 DataSource 应该已经初始化，数据库连接已经建立
+   * - 如果使用 synchronize: true，表结构同步也在连接建立时完成
+   * 
+   * 如果遇到连接未初始化的情况（理论上不应该发生），会抛出错误以便排查问题
+   */
+  async onApplicationBootstrap() {
+    // 执行种子数据初始化
+    await this.seedService.seed();
   }
 }

@@ -44,7 +44,6 @@ export class DeptService {
       sortOrder: createDeptDto.sortOrder,
       status: createDeptDto.status,
       ancestors: parentDept.ancestors + ',' + parentDept.id,
-      deleteFlag: '0'
     }); 
     try {
       return await this.deptRepository.save(dept);
@@ -62,7 +61,7 @@ export class DeptService {
   }
 
   async list() {
-    const flatData = await this.deptRepository.find({ where: { deleteFlag: '0' }, relations: { leader: true } });
+    const flatData = await this.deptRepository.find({ relations: { leader: true } });
     return buildTree<SysDept, FrontendDeptDto>(flatData, toFrontendDeptDto);
   }
 
@@ -119,7 +118,7 @@ export class DeptService {
 
   async delete(publicId: string) {
     // 根据publicId查询部门
-    const dept = await this.deptRepository.findOne({ where: { publicId, deleteFlag: '0' } });
+    const dept = await this.deptRepository.findOne({ where: { publicId } });
     if (!dept) {
       throw new BadRequestException('部门不存在或已被删除');
     }
@@ -129,7 +128,6 @@ export class DeptService {
     const childDepts = await this.deptRepository
       .createQueryBuilder('dept')
       .where('FIND_IN_SET(:deptId, dept.ancestors) > 0', { deptId: dept.id })
-      .andWhere('dept.deleteFlag = :deleteFlag', { deleteFlag: '0' })
       .getMany();
 
     // 收集所有要删除的部门id（当前部门 + 所有子部门）
@@ -140,23 +138,16 @@ export class DeptService {
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.dept', 'dept')
       .where('user.dept_id IN (:...deptIds)', { deptIds })
-      .andWhere('user.del_flag = :delFlag', { delFlag: '0' })
       .getMany();
 
-    // 软删除当前部门
-    dept.deleteFlag = '1';
-    
-    // 软删除所有子部门
-    childDepts.forEach(childDept => {
-      childDept.deleteFlag = '1';
-    });
-
     // 软删除所有相关用户
-    await this.userRepository.softRemove(users);
+    if (users.length > 0) {
+      await this.userRepository.softRemove(users);
+    }
 
     try {
-      // 批量保存（当前部门 + 所有子部门 + 所有用户）
-      await this.deptRepository.save([dept, ...childDepts]);
+      // 批量软删除（当前部门 + 所有子部门）
+      await this.deptRepository.softRemove([dept, ...childDepts]);
       
       const childCount = childDepts.length;
       const userCount = users.length;

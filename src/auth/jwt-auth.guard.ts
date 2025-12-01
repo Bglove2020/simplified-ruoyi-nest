@@ -45,14 +45,9 @@ export class JwtAuthGuard implements CanActivate {
     try {
       const payload = await this.jwt.verifyAsync(token);
       (req as any).user = payload;
-      // console.log('payload:', payload,this.als.getUserId(),this.als.getRequestId());
       if (payload.sub) {
         this.als.updateContext({ userPublicId: payload.sub });
       }
-      setTimeout(() => {
-        console.log('JwtAuthGuard updateContext', this.als.getUserPublicId(),this.als.getRequestId());
-      }, 4000);
-      // console.log('updateContext', this.als.getUserId(),this.als.getRequestId());
       return true;
     } catch {
       throw new UnauthorizedException('访问令牌无效');

@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
   JoinTable,
   BeforeInsert,
+  DeleteDateColumn,
 } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { SysUser } from '@/system/user/entities/user.entity';
@@ -53,13 +54,8 @@ export class SysRole {
   })
   status: string;
 
-  @Column({
-    name: 'del_flag',
-    length: 1,
-    default: '0',
-    comment: '删除标志（0存在 1删除）',
-  })
-  delFlag: string;
+  @DeleteDateColumn({ name: 'deleted_at', type: 'datetime', comment: '删除时间' })
+  deletedAt: Date | null;
 
   @Column({ name: 'create_by', length: 64, default: '', comment: '创建者' })
   createBy: string;

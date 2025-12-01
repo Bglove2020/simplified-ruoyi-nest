@@ -2,7 +2,6 @@ import { SysUser } from '../entities/user.entity';
 import FrontendUserDto from '../dto/frontend-user.dto';
 
 export function toFrontendDto(user: SysUser): FrontendUserDto {
-  console.log(user);
   return {
     publicId: user.publicId,
     account: user.account,
@@ -13,6 +12,7 @@ export function toFrontendDto(user: SysUser): FrontendUserDto {
     status: user.status,
     deptPublicId: user.dept.publicId,
     deptName: user.dept.name,
+    rolePublicIds: user.roles.map((role) => role.publicId),
   };
 }
 

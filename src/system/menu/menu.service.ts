@@ -45,9 +45,7 @@ export class MenuService {
   }
 
   async list(): Promise<(FrontendMenuDto & { children: (FrontendMenuDto & { children: any[] })[] })[]> {
-    const menus = await this.menuRepository.find({
-      where: { delFlag: '0' },
-    });
+    const menus = await this.menuRepository.find();
     return buildTree<SysMenu, FrontendMenuDto>(menus, toFrontendDto);
   }
 
@@ -79,18 +77,15 @@ export class MenuService {
     if (!menu) {
       throw new BadRequestException('菜单不存在');
     }
-    menu.delFlag = '1';
     try{
-      await this.menuRepository.save(menu);
+      await this.menuRepository.softRemove(menu);
       // 通过ancestor字段查询所有子菜单，进行软删除
       const subMenus = await this.menuRepository
         .createQueryBuilder('menu')
         .where('menu.ancestors LIKE :ancestorId', { ancestorId: `%${menu.id}%` })
-        .andWhere('menu.delFlag = :delFlag', { delFlag: '0' })
         .getMany();
-      for (const subMenu of subMenus) {
-        subMenu.delFlag = '1';
-        await this.menuRepository.save(subMenu);
+      if (subMenus.length > 0) {
+        await this.menuRepository.softRemove(subMenus);
       }
       return { success: true, msg: '菜单删除成功' };
     } catch (e: any) {
