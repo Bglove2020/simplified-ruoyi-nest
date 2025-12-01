@@ -10,6 +10,7 @@ import {
   UpdateDateColumn,
   BeforeInsert,
   DeleteDateColumn,
+  Index,
 } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { SysUser } from '@/system/user/entities/user.entity';
@@ -23,6 +24,7 @@ import { SysUser } from '@/system/user/entities/user.entity';
 
 // mysql在windows平台下不区分数据库名、表名、列名的大小写，因此建议使用小写字母+下划线的形式
 @Entity('sys_dept')
+@Index(['name', 'deletedAt'], { unique: true })
 export class SysDept {
   @PrimaryGeneratedColumn({
     comment: '部门id，有序，自增，非uuid',

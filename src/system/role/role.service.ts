@@ -1,7 +1,6 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
-import { randomUUID } from 'crypto';
+import { In, Repository } from 'typeorm';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { SysRole } from './entities/role.entity';
@@ -19,34 +18,30 @@ export class RoleService {
     private userRepository: Repository<SysUser>,
   ) {}
 
-  async create(createRoleDto: CreateRoleDto): Promise<SysRole> {
-
-
-    // 如果有菜单ID，查询对应的菜单
+  async create(createRoleDto: CreateRoleDto): Promise<void> {
     let menus: SysMenu[] = [];
     if (createRoleDto.menuIds && createRoleDto.menuIds.length > 0) {
       menus = await this.menuRepository.find({
         where: { publicId: In(createRoleDto.menuIds) },
       });
       if (menus.length !== createRoleDto.menuIds.length) {
-        throw new BadRequestException('部分菜单不存在');
+        throw new BadRequestException('Some menus were not found');
       }
     }
 
-    // 创建角色实体
     const role = this.roleRepository.create({
       name: createRoleDto.name,
       roleKey: createRoleDto.roleKey,
       sortOrder: createRoleDto.sortOrder,
       dataScope: createRoleDto.dataScope,
       status: createRoleDto.status,
-      createBy: 'system', // 系统创建
+      createBy: 'system',
       updateBy: 'system',
-      menus: menus, // 关联菜单
+      menus,
     });
 
     try {
-      return this.roleRepository.save(role);
+      await this.roleRepository.save(role);
     } catch (e: any) {
       const code = e?.code;
       const msg = String(e?.sqlMessage || e?.message || '');
@@ -69,74 +64,71 @@ export class RoleService {
     }
   }
 
-  list() {
+  async list() {
     return this.roleRepository.find({
-      // 指定要添加的关系
       relations: {
         menus: true,
       },
-      // 指定要查询的字段
-      select:{
+      select: {
         publicId: true,
         name: true,
         roleKey: true,
         sortOrder: true,
         status: true,
-        menus:{
-          publicId: true
+        menus: {
+          publicId: true,
         },
       },
     });
   }
 
-
-  async update(updateRoleDto: UpdateRoleDto){
-    const role = await this.roleRepository.findOne({ 
+  async update(updateRoleDto: UpdateRoleDto) {
+    const role = await this.roleRepository.findOne({
       where: { publicId: updateRoleDto.publicId },
-      relations: { menus: true }, // 需要加载 menus 关系才能更新
+      relations: { menus: true },
     });
     if (!role) {
-      return { success: false, msg: '角色不存在' };
+      throw new BadRequestException('Role not found');
     }
-    const {menuIds, ...rest} = updateRoleDto;
-    
-    // 更新普通字段
+    const { menuIds, ...rest } = updateRoleDto;
+
     Object.assign(role, rest);
-    
-    // 更新多对多关系（菜单）
-    if(menuIds){
+
+    if (menuIds) {
       const menus = await this.menuRepository.find({ where: { publicId: In(menuIds) } });
-      if(menus.length !== menuIds.length){
-        return { success: false, msg: '部分菜单不存在' };
+      if (menus.length !== menuIds.length) {
+        throw new BadRequestException('Some menus were not found');
       }
       role.menus = menus;
     }
-    // TypeORM 的 update() 方法不能更新多对多关系。它只能更新实体的直接字段，不能处理关联关系（如 menus）。
-    // 使用 save 方法保存
+
     try {
       await this.roleRepository.save(role);
-      return { success: true, msg: '角色更新成功' };
     } catch (e: any) {
-      throw new BadRequestException(e.message);
+      const msg = String(e?.sqlMessage || e?.message || '');
+      throw new BadRequestException(`Failed to update role: ${msg}`);
     }
   }
 
   async delete(publicId: string) {
-    const role = await this.roleRepository.findOne({ 
-      where: { publicId: publicId } ,
+    const role = await this.roleRepository.findOne({
+      where: { publicId },
       relations: {
         users: true,
       },
     });
-    console.log('delete role:',role);
-    if(!role || role.users.length > 0){
-      return { success: false, msg: '角色存在用户，不能删除' };
+    if (!role) {
+      throw new BadRequestException('Role not found');
     }
-    try{
+    if (role.users.length > 0) {
+      throw new BadRequestException('Role has associated users and cannot be deleted');
+    }
+
+    try {
       await this.roleRepository.softRemove(role);
-      return { success: true, msg: '角色删除成功' };
-    }catch(e: any){
-      return { success: false, msg: '角色删除失败' };
+    } catch (e: any) {
+      const msg = String(e?.sqlMessage || e?.message || '');
+      throw new BadRequestException(`Failed to delete role: ${msg}`);
     }
   }
 }

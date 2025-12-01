@@ -1,10 +1,9 @@
-import { Injectable, UnauthorizedException, Inject, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UserService } from '@/system/user/user.service';
 import { LoginDto } from './dto/login.dto';
 import CreateUserDto from '@/system/user/dto/create-user.dto';
-import { LoggingService } from '@/common/logging/logging.service';
 import { AlsService } from '@/common/als/als.service';
 
 @Injectable()
@@ -13,14 +12,11 @@ export class AuthService {
     private readonly userService: UserService,
     @Inject('ACCESS_JWT') private readonly accessJwtService: JwtService,
     @Inject('REFRESH_JWT') private readonly refreshJwtService: JwtService,
-    private readonly loggingService: LoggingService,
     private readonly alsService: AlsService,
   ) {}
 
-  // 注册用户
-  async register(createUserDto: CreateUserDto){
-    const newUser = await this.userService.create(createUserDto);
-    return newUser;
+  async register(createUserDto: CreateUserDto) {
+    await this.userService.create(createUserDto);
   }
 
   async validateUser(userAccount: string, pass: string): Promise<any> {
@@ -33,33 +29,33 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.account, loginDto.password);  
+    const user = await this.validateUser(loginDto.account, loginDto.password);
     if (!user) {
       throw new BadRequestException({msg: '用户名或密码错误', code: 400});
     }
-    const payload = { username: user.account, sub: user.publicId }; 
-    
-    // 登录成功后也更新一下上下文，方便后续日志（虽然 login 接口通常没有 userId）
+    const payload = { userAccount: user.account, sub: user.publicId };
+    // 更新异步上下文，将用户publicId放入
     this.alsService.updateContext({ userPublicId: user.publicId });
 
     return {
-      access_token: await this.accessJwtService.signAsync(payload),
-      refresh_token: await this.refreshJwtService.signAsync(payload),
+      accessToken: await this.accessJwtService.signAsync(payload),
+      refreshToken: await this.refreshJwtService.signAsync(payload),
     };
   }
 
   async refresh(refreshToken: string) {
     try {
       const payload = await this.refreshJwtService.verifyAsync(refreshToken);
-      // 验证成功后更新上下文，这样后续的日志就会带上 userId
       if (payload.sub) {
         this.alsService.updateContext({ userPublicId: payload.sub });
       }
-      const newAccessToken = await this.accessJwtService.signAsync({ username: payload.username, sub: payload.sub });
-      return { access_token: newAccessToken };
+      const newAccessToken = await this.accessJwtService.signAsync({
+        userAccount: payload.userAccount,
+        sub: payload.sub,
+      });
+      return { accessToken: newAccessToken };
     } catch (error) {
-      throw new UnauthorizedException('刷新令牌无效');
+      throw new UnauthorizedException({msg: '刷新令牌无效', code: 401});
     }
   }
-
 }
