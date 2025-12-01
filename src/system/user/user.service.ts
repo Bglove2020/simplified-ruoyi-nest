@@ -21,58 +21,79 @@ export class UserService {
   ) {}
 
   async list(): Promise<SysUser[]> {
-    return this.userRepository.find({
+    let users: SysUser[] = [];
+    try{
+      users = await this.userRepository.find({
       relations: {
         dept: true,
         roles: true,
       },
     });
+    }
+    catch(e: any){
+      throw new BadRequestException({msg: '数据库查询错误', code: 400});
+    }
+    return users;
   }
 
-  async get(publicId: string): Promise<SysUser | null> {
-    return this.userRepository.findOne({
-      where: { publicId },
-      relations: {
-        dept: true,
-        roles: true,
-      },
-    });
+  async get(publicId: string) {
+    let user: SysUser | null = null;
+    try{
+      user = await this.userRepository.findOne({
+        where: { publicId },
+        relations: {
+          dept: true,
+          roles: true,
+        },
+      });
+    }
+    catch(e: any){
+      throw new BadRequestException({msg: '数据库查询错误', code: 400});
+    }
+    return user;
   }
 
   async getByAccount(account: string): Promise<SysUser | null> {
-    return this.userRepository.findOne({
-      where: { account },
-      relations: {
-        dept: true,
-        roles: true,
-      },
-    });
+    try{
+      return this.userRepository.findOne({
+        where: { account },
+        relations: {
+          dept: true,
+          roles: true,
+        },
+      });
+    }
+    catch(e: any){
+      throw new BadRequestException({msg: '数据库查询错误', code: 400});
+    }
   }
 
-  async create(createUserDto: CreateUserDto): Promise<SysUser> {
-    // 如果有部门id，检查部门是否存在
-    let dept: Partial<SysDept> | null;
-    if (createUserDto.deptPublicId) {
+  async create(createUserDto: CreateUserDto){
+    // 这里如果createUserDto.deptPublicId为undefined，typeorm会忽略筛选条件默认查出来第一个部门
+    let dept: SysDept | null = null;
+    try{
       dept = await this.deptRepository.findOne({
         where: { publicId: createUserDto.deptPublicId },
       });
       if (!dept) {
-        throw new BadRequestException('部门不存在');
+        throw new BadRequestException({msg: '部门不存在', code: 400});
       }
-    } else {
-      dept = { id: 1 };
+    }
+    catch(e: any){
+      throw new BadRequestException({msg: '数据库查询错误', code: 400});
     }
 
     let roles: SysRole[] = [];
-    if (createUserDto.rolePublicIds && createUserDto.rolePublicIds.length > 0) {
+    try{
       roles = await this.roleRepository.find({
         where: { publicId: In(createUserDto.rolePublicIds) },
       }); 
       if (roles.length !== createUserDto.rolePublicIds.length) {
-        throw new BadRequestException('部分角色不存在');
+        throw new BadRequestException({msg: '部分角色不存在', code: 400});
       }
-    } else {
-      throw new BadRequestException('用户角色不能为空');
+    }
+    catch(e: any){
+      throw new BadRequestException({msg: '数据库查询错误', code: 400});
     }
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
@@ -82,55 +103,40 @@ export class UserService {
       email: createUserDto.email,
       sex: createUserDto.sex,
       password: hashedPassword,
-      // 没有部门id的话，就默认设置为根部门
       dept: dept,
       roles: roles,
       avatar: createUserDto.avatar,
-      status: '1', // 默认状态为正常
-      createBy: 'system', // 系统创建
+      status: '1',
+      createBy: 'system',
       updateBy: 'system',
     });
 
     try {
-      return await this.userRepository.save(user);
+      await this.userRepository.save(user);
     } catch (e: any) {
-      const code = e?.code;
-      const msg = String(e?.sqlMessage || e?.message || '');
-      if (
-        code === 'ER_NO_REFERENCED_ROW_2' ||
-        msg.includes('a foreign key constraint fails')
-      ) {
-        throw new BadRequestException('部门不存在');
-      }
-      if (code === 'ER_DUP_ENTRY') {
-        if (msg.includes(createUserDto.account)) {
-          throw new BadRequestException('账号已存在');
-        }
-        if (msg.includes(createUserDto.email)) {
-          throw new BadRequestException('邮箱已存在');
-        }
-        throw new BadRequestException('唯一键冲突');
-      }
-      if (code === 'ER_DATA_TOO_LONG') {
-        throw new BadRequestException('字段长度超出限制');
-      }
-      if (code === 'ER_BAD_NULL_ERROR') {
-        throw new BadRequestException('必填字段为空');
-      }
-      throw e;
+      throw new BadRequestException({msg: '数据库保存错误', code: 400});
     }
   }
 
-  async resetPassword(
-    resetPasswordDto: ResetUserPasswordDto,
-  ): Promise<boolean> {
-    const user = await this.get(resetPasswordDto.publicId);
-    if (!user) {
-      throw new BadRequestException('用户不存在');
+  async resetPassword(resetPasswordDto: ResetUserPasswordDto){
+    let user: SysUser | null = null;
+    try{
+      user = await this.userRepository.findOne({
+        where: { publicId: resetPasswordDto.publicId },
+      });
+      if (!user) {
+        throw new BadRequestException({msg: '用户不存在', code: 400});
+      }
+    }
+    catch(e: any){
+      throw new BadRequestException({msg: '数据库更新错误', code: 400});
     }
     user.password = await bcrypt.hash(resetPasswordDto.password, 10);
-    await this.userRepository.save(user);
-    return true;
+    try{
+      await this.userRepository.save(user);
+    }catch(e: any){
+      throw new BadRequestException({msg: '数据库更新错误', code: 400});
+    }
   }
 
 
@@ -145,24 +151,20 @@ export class UserService {
         },
       });
     } catch (e: any) {
-      throw new BadRequestException('数据库查询错误');
+      throw new BadRequestException({msg: '数据库查询错误', code: 400});
     }
 
-    console.log('delete user:',user);
     if(!user){
-      throw new BadRequestException('用户不存在');
+      throw new BadRequestException({msg: '用户不存在', code: 400});
     }
     if (user.leaderDepts.length > 0) {
-      // throw new BadRequestException('用户是院系负责人，不能删除');
-      // throw new HttpException({message: '用户是院系负责人，不能删除'}, HttpStatus.BAD_REQUEST);
-      throw new HttpException({msg: '用户是院系负责人，不能删除', code: 400}, HttpStatus.BAD_REQUEST);
-      // throw new Error('用户是院系负责人，不能删除');
+      throw new BadRequestException({msg: '用户是院系负责人，不能删除', code: 400});
     }
 
     try{
       await this.userRepository.softRemove(user);
     }catch(e: any){
-      throw new BadRequestException('数据库删除错误');
+      throw new BadRequestException({msg: '数据库删除错误', code: 400});
     }
   }
 
@@ -201,7 +203,7 @@ export class UserService {
         }
         user.dept = dept;
       }catch(e: any){
-        throw new BadRequestException({msg: '数据库查询错误', code: 400});
+        throw new BadRequestException({msg: '数据库更新错误', code: 400});
       }
     }
 
@@ -218,7 +220,7 @@ export class UserService {
         console.log('roles:',roles);
         user.roles = roles;
       }catch(e: any){
-        throw new BadRequestException({msg: '数据库查询错误', code: 400});
+        throw new BadRequestException({msg: '数据库更新错误', code: 400});
       }
     }
     console.log('user:',user);

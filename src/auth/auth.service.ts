@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Inject, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UserService } from '@/system/user/user.service';
@@ -35,7 +35,7 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const user = await this.validateUser(loginDto.account, loginDto.password);  
     if (!user) {
-      throw new UnauthorizedException('用户名或密码错误');
+      throw new BadRequestException({msg: '用户名或密码错误', code: 400});
     }
     const payload = { username: user.account, sub: user.publicId }; 
     
