@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Logger, QueryRunner } from 'typeorm';
+import { format } from 'sql-formatter';
 import { LoggingService } from '../logging/logging.service';
 
 /**
@@ -43,9 +44,8 @@ export class TypeOrmLoggerService implements Logger {
     // }
     
     const sql = this.formatQuery(query, parameters);
-    const formattedSql = this.beautifySql(sql);
     this.loggingService.debug(`[TypeORM Query]`, {
-      query: formattedSql,
+      query: sql,
     });
   }
 
@@ -61,9 +61,8 @@ export class TypeOrmLoggerService implements Logger {
     queryRunner?: QueryRunner,
   ) {
     const sql = this.formatQuery(query, parameters);
-    const formattedSql = this.beautifySql(sql);
     this.loggingService.error(`[TypeORM Query Error]`, {
-      query: formattedSql,
+      query: sql,
       error: error,
       stack: error instanceof Error ? error.stack : undefined,
     });
@@ -88,10 +87,9 @@ export class TypeOrmLoggerService implements Logger {
     queryRunner?: QueryRunner,
   ) {
     const sql = this.formatQuery(query, parameters);
-    const formattedSql = this.beautifySql(sql);
     this.loggingService.warn(`[TypeORM Slow Query]`, {
       executionTime: time,
-      query: formattedSql,
+      query: sql,
     });
   }
 
@@ -135,118 +133,69 @@ export class TypeOrmLoggerService implements Logger {
    * 对于复杂的 SQL（如包含字符串中的?），可能需要更复杂的处理
    */
   private formatQuery(query: string, parameters?: any[]): string {
-    if (!parameters || parameters.length === 0) {
-      return query;
+    let sqlWithParams = query;
+
+    // 如果有参数，先将参数值替换到 SQL 中
+    if (parameters && parameters.length > 0) {
+      // 将参数值替换到 SQL 中，便于阅读
+      // MySQL 使用 ? 作为占位符
+      let paramIndex = 0;
+      
+      // 逐个替换 ? 占位符
+      sqlWithParams = sqlWithParams.replace(/\?/g, () => {
+        if (paramIndex < parameters.length) {
+          const param = parameters[paramIndex++];
+          // 处理不同类型的参数
+          if (param === null || param === undefined) {
+            return 'NULL';
+          }
+          if (typeof param === 'string') {
+            // 转义单引号
+            const escaped = param.replace(/'/g, "''");
+            return `'${escaped}'`;
+          }
+          if (typeof param === 'number' || typeof param === 'boolean') {
+            return String(param);
+          }
+          if (param instanceof Date) {
+            return `'${param.toISOString()}'`;
+          }
+          // 对于对象和数组，转换为 JSON 字符串
+          return `'${JSON.stringify(param).replace(/'/g, "''")}'`;
+        }
+        return '?';
+      });
     }
 
-    // 将参数值替换到 SQL 中，便于阅读
-    // MySQL 使用 ? 作为占位符
-    let formattedQuery = query;
-    let paramIndex = 0;
-    
-    // 逐个替换 ? 占位符
-    formattedQuery = formattedQuery.replace(/\?/g, () => {
-      if (paramIndex < parameters.length) {
-        const param = parameters[paramIndex++];
-        // 处理不同类型的参数
-        if (param === null || param === undefined) {
-          return 'NULL';
-        }
-        if (typeof param === 'string') {
-          // 转义单引号
-          const escaped = param.replace(/'/g, "''");
-          return `'${escaped}'`;
-        }
-        if (typeof param === 'number' || typeof param === 'boolean') {
-          return String(param);
-        }
-        if (param instanceof Date) {
-          return `'${param.toISOString()}'`;
-        }
-        // 对于对象和数组，转换为 JSON 字符串
-        return `'${JSON.stringify(param).replace(/'/g, "''")}'`;
-      }
-      return '?';
-    });
+    // 使用 sql-formatter 格式化 SQL，提高可读性
+    try {
+      const formatted = format(sqlWithParams, {
+        language: 'mysql', // 指定 MySQL 方言
+        tabWidth: 2, // 缩进宽度
+        keywordCase: 'upper', // 关键字大写
+        expressionWidth: 80, // 表达式宽度，超过此宽度才换行，让 SQL 更紧凑
+        denseOperators: false, // 保持操作符周围有空格，提高可读性
+        linesBetweenQueries: 1, // 查询之间的空行数
+      });
 
-    return formattedQuery;
-  }
-
-  /**
-   * 格式化 SQL 语句，提高可读性
-   * - 添加换行和缩进
-   * - 格式化 SELECT、FROM、WHERE、JOIN 等关键字
-   */
-  private beautifySql(sql: string): string {
-    if (!sql || sql.trim().length === 0) {
-      return sql;
+      // 后处理：移除多余的空行，让 SQL 更紧凑
+      return formatted
+        .split('\n')
+        .map(line => line.trimEnd()) // 移除行尾空格
+        .filter((line, index, lines) => {
+          // 移除连续的空行，但保留单个空行用于分隔主要部分
+          if (line.trim() === '') {
+            // 如果下一行也是空行，则移除当前空行
+            return index === lines.length - 1 || lines[index + 1].trim() !== '';
+          }
+          return true;
+        })
+        .join('\n')
+        .trim();
+    } catch (error) {
+      // 如果格式化失败（例如 SQL 语法错误），返回原始 SQL
+      // 这种情况不应该影响日志记录
+      return sqlWithParams;
     }
-
-    let beautified = sql;
-
-    // 处理 SELECT 语句的字段列表
-    if (beautified.trim().toUpperCase().startsWith('SELECT')) {
-      // 匹配 SELECT ... FROM 之间的内容
-      const selectMatch = beautified.match(/SELECT\s+(.*?)\s+FROM/is);
-      if (selectMatch) {
-        const fieldsPart = selectMatch[1];
-        // 如果字段列表很长（超过50个字符）或包含多个字段，分行显示
-        if (fieldsPart.length > 50 || fieldsPart.includes(',')) {
-          const fields = fieldsPart
-            .split(',')
-            .map(f => f.trim())
-            .filter(f => f.length > 0);
-          
-          // 格式化字段，最后一个字段后面不加逗号
-          const formattedFields = fields
-            .map((f, index) => {
-              const indent = '  ';
-              const comma = index < fields.length - 1 ? ',' : '';
-              return `${indent}${f}${comma}`;
-            })
-            .join('\n');
-          
-          beautified = beautified.replace(
-            /SELECT\s+.*?\s+FROM/is,
-            `SELECT\n${formattedFields}\nFROM`
-          );
-        }
-      }
-    }
-
-    // 美化等号，添加空格
-    beautified = beautified.replace(/([^=<>!])=([^=<>!])/g, '$1 = $2');
-
-    // 格式化 SQL 关键字，添加换行和缩进
-    // 注意：必须先处理复合关键字（LEFT JOIN等），再处理单独的关键字（JOIN），避免拆分
-    beautified = beautified
-      .replace(/\bFROM\b/gi, '\nFROM')
-      .replace(/\bWHERE\b/gi, '\nWHERE')
-      .replace(/\bLEFT JOIN\b/gi, '\n  LEFT JOIN')
-      .replace(/\bRIGHT JOIN\b/gi, '\n  RIGHT JOIN')
-      .replace(/\bINNER JOIN\b/gi, '\n  INNER JOIN')
-      .replace(/\bFULL OUTER JOIN\b/gi, '\n  FULL OUTER JOIN')
-      .replace(/\bON\b/gi, '\n    ON')
-      .replace(/\bAND\b/gi, '\n    AND')
-      .replace(/\bOR\b/gi, '\n    OR')
-      .replace(/\bORDER BY\b/gi, '\nORDER BY')
-      .replace(/\bGROUP BY\b/gi, '\nGROUP BY')
-      .replace(/\bHAVING\b/gi, '\nHAVING')
-      .replace(/\bLIMIT\b/gi, '\nLIMIT')
-      .replace(/\bOFFSET\b/gi, '\nOFFSET')
-      .replace(/\bINSERT INTO\b/gi, 'INSERT INTO')
-      .replace(/\bUPDATE\b/gi, 'UPDATE')
-      .replace(/\bSET\b/gi, '\nSET')
-      .replace(/\bDELETE FROM\b/gi, 'DELETE FROM')
-      .replace(/\bVALUES\b/gi, '\nVALUES');
-
-    // 清理多余的空行和空格
-    beautified = beautified
-      .replace(/\n{3,}/g, '\n') // 多个空行合并为一个
-      .replace(/^\s+/, '') // 移除开头的空白
-      .replace(/\s+$/gm, '') // 移除每行末尾的空白
-      .trim();
-
-    return beautified;
   }
 }
