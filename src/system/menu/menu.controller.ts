@@ -19,7 +19,7 @@ export class MenuController {
     });
     await this.menuService.create(createMenuDto);
     this.loggingService.log('POST /system/menu/create success');
-    return { code: 200, msg: 'Menu created', data: null };
+    return { code: 200, msg: '菜单创建成功', data: null };
   }
 
   @Get('list')
@@ -33,7 +33,7 @@ export class MenuController {
     this.loggingService.log('GET /system/menu/list success', {
       responseDescriptor: { type: 'list', count: data.length },
     });
-    return { code: 200, msg: 'Menu list fetched', data };
+    return { code: 200, msg: '菜单列表获取成功', data };
   }
 
   @Get(':id')
@@ -45,7 +45,7 @@ export class MenuController {
     this.loggingService.log('GET /system/menu/:id success', {
       responseDescriptor: { data: { publicId } },
     });
-    return { code: 200, msg: 'Menu fetched', data };
+    return { code: 200, msg: '菜单获取成功', data };
   }
 
   @Post('update')
@@ -55,7 +55,7 @@ export class MenuController {
     });
     await this.menuService.update(updateMenuDto);
     this.loggingService.log('POST /system/menu/update success');
-    return { code: 200, msg: 'Menu updated', data: null };
+    return { code: 200, msg: '菜单更新成功', data: null };
   }
 
   @Delete('delete')
@@ -63,6 +63,6 @@ export class MenuController {
     this.loggingService.log('DELETE /system/menu/delete', { params: { publicId } });
     await this.menuService.delete(publicId);
     this.loggingService.log('DELETE /system/menu/delete success');
-    return { code: 200, msg: 'Menu deleted', data: null };
+    return { code: 200, msg: '菜单删除成功', data: null };
   }
 }

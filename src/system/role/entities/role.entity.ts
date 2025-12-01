@@ -8,12 +8,15 @@ import {
   JoinTable,
   BeforeInsert,
   DeleteDateColumn,
+  Index,
 } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { SysUser } from '@/system/user/entities/user.entity';
 import { SysMenu } from '@/system/menu/entities/menu.entity';
 
 @Entity('sys_role')
+@Index('uniq_sys_role_name_active', ['activeName'], { unique: true })
+@Index('uniq_sys_role_key_active', ['activeRoleKey'], { unique: true })
 export class SysRole {
   @PrimaryGeneratedColumn({
     comment: '角色id，有序，自增，非uuid',
@@ -27,17 +30,41 @@ export class SysRole {
   })
   publicId: string;
 
-  @Column({length: 30, comment: '角色名称' })
+  @Column({ length: 30, comment: '角色名称' })
   name: string;
+
+  @Column({
+    name: 'active_name',
+    type: 'varchar',
+    length: 80,
+    asExpression:
+      "case when deleted_at is null then name else concat(name, '#', public_id) end",
+    generatedType: 'VIRTUAL',
+    select: false,
+    insert: false,
+    update: false,
+  })
+  activeName: string;
   
-  //暂时不知道是干啥的   
   @Column({ name: 'role_key', length: 100, comment: '角色权限字符串' })
   roleKey: string;
+
+  @Column({
+    name: 'active_role_key',
+    type: 'varchar',
+    length: 160,
+    asExpression:
+      "case when deleted_at is null then role_key else concat(role_key, '#', public_id) end",
+    generatedType: 'VIRTUAL',
+    select: false,
+    insert: false,
+    update: false,
+  })
+  activeRoleKey: string;
 
   @Column({ name: 'sort_order', type: 'int', comment: '显示顺序' })
   sortOrder: number;
 
-  //暂时不知道是干啥的
   @Column({
     name: 'data_scope',
     length: 1,
@@ -76,7 +103,7 @@ export class SysRole {
   @Column({ name: 'remark', length: 500, default: '', comment: '备注' })
   remark: string;
 
-  // 角色用户关联 (通过 SysUser 的 @ManyToMany)
+  // 角色用户关联 (通过 SysUser 的@ManyToMany)
   @ManyToMany(() => SysUser, (user) => user.roles)
   users: SysUser[];
 

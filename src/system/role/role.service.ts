@@ -21,11 +21,15 @@ export class RoleService {
   async create(createRoleDto: CreateRoleDto): Promise<void> {
     let menus: SysMenu[] = [];
     if (createRoleDto.menuIds && createRoleDto.menuIds.length > 0) {
-      menus = await this.menuRepository.find({
-        where: { publicId: In(createRoleDto.menuIds) },
-      });
+      try {
+        menus = await this.menuRepository.find({
+          where: { publicId: In(createRoleDto.menuIds) },
+        });
+      } catch (e: any) {
+        throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
+      }
       if (menus.length !== createRoleDto.menuIds.length) {
-        throw new BadRequestException('Some menus were not found');
+        throw new BadRequestException({ msg: '部分菜单不存在', code: 400 });
       }
     }
 
@@ -43,61 +47,58 @@ export class RoleService {
     try {
       await this.roleRepository.save(role);
     } catch (e: any) {
-      const code = e?.code;
-      const msg = String(e?.sqlMessage || e?.message || '');
-      if (code === 'ER_DUP_ENTRY') {
-        if (msg.includes(createRoleDto.name)) {
-          throw new BadRequestException('角色名称已存在');
-        }
-        if (msg.includes(createRoleDto.roleKey)) {
-          throw new BadRequestException('角色权限字符串已存在');
-        }
-        throw new BadRequestException('唯一键冲突');
-      }
-      if (code === 'ER_DATA_TOO_LONG') {
-        throw new BadRequestException('字段长度超出限制');
-      }
-      if (code === 'ER_BAD_NULL_ERROR') {
-        throw new BadRequestException('必填字段为空');
-      }
-      throw new BadRequestException('创建角色失败');
+      throw new BadRequestException({ msg: '数据库保存错误', code: 400 });
     }
   }
 
   async list() {
-    return this.roleRepository.find({
-      relations: {
-        menus: true,
-      },
-      select: {
-        publicId: true,
-        name: true,
-        roleKey: true,
-        sortOrder: true,
-        status: true,
-        menus: {
-          publicId: true,
+    try {
+      return await this.roleRepository.find({
+        relations: {
+          menus: true,
         },
-      },
-    });
+        select: {
+          publicId: true,
+          name: true,
+          roleKey: true,
+          sortOrder: true,
+          status: true,
+          menus: {
+            publicId: true,
+          },
+        },
+      });
+    } catch (e: any) {
+      throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
+    }
   }
 
   async update(updateRoleDto: UpdateRoleDto) {
-    const role = await this.roleRepository.findOne({
-      where: { publicId: updateRoleDto.publicId },
-      relations: { menus: true },
-    });
+    let role: SysRole | null = null;
+    try {
+      role = await this.roleRepository.findOne({
+        where: { publicId: updateRoleDto.publicId },
+        relations: { menus: true },
+      });
+    } catch (e: any) {
+      throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
+    }
     if (!role) {
-      throw new BadRequestException('Role not found');
+      throw new BadRequestException({ msg: '角色不存在', code: 400 });
     }
     const { menuIds, ...rest } = updateRoleDto;
 
     Object.assign(role, rest);
 
     if (menuIds) {
-      const menus = await this.menuRepository.find({ where: { publicId: In(menuIds) } });
+      let menus: SysMenu[] = [];
+      try {
+        menus = await this.menuRepository.find({ where: { publicId: In(menuIds) } });
+      } catch (e: any) {
+        throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
+      }
       if (menus.length !== menuIds.length) {
-        throw new BadRequestException('Some menus were not found');
+        throw new BadRequestException({ msg: '部分菜单不存在', code: 400 });
       }
       role.menus = menus;
     }
@@ -105,30 +106,33 @@ export class RoleService {
     try {
       await this.roleRepository.save(role);
     } catch (e: any) {
-      const msg = String(e?.sqlMessage || e?.message || '');
-      throw new BadRequestException(`Failed to update role: ${msg}`);
+      throw new BadRequestException({ msg: '数据库更新错误', code: 400 });
     }
   }
 
   async delete(publicId: string) {
-    const role = await this.roleRepository.findOne({
-      where: { publicId },
-      relations: {
-        users: true,
-      },
-    });
+    let role: SysRole | null = null;
+    try {
+      role = await this.roleRepository.findOne({
+        where: { publicId },
+        relations: {
+          users: true,
+        },
+      });
+    } catch (e: any) {
+      throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
+    }
     if (!role) {
-      throw new BadRequestException('Role not found');
+      throw new BadRequestException({ msg: '角色不存在', code: 400 });
     }
     if (role.users.length > 0) {
-      throw new BadRequestException('Role has associated users and cannot be deleted');
+      throw new BadRequestException({ msg: '角色有关联用户，不能删除', code: 400 });
     }
 
     try {
       await this.roleRepository.softRemove(role);
     } catch (e: any) {
-      const msg = String(e?.sqlMessage || e?.message || '');
-      throw new BadRequestException(`Failed to delete role: ${msg}`);
+      throw new BadRequestException({ msg: '数据库删除错误', code: 400 });
     }
   }
 }

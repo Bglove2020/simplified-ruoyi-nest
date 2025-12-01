@@ -20,17 +20,18 @@ export class RoleController {
     });
     await this.roleService.create(createRoleDto);
     this.loggingService.log('POST /system/role/create success');
-    return { code: 200, msg: 'Role created', data: null };
+    return { code: 200, msg: '角色创建成功', data: null };
   }
 
   @Get('list')
   async list() {
+    this.loggingService.log('GET /system/role/list');
     const roles = await this.roleService.list();
     const data: FrontendRoleDto[] = toFrontendDtoList(roles);
     this.loggingService.log('GET /system/role/list success', {
       responseDescriptor: { type: 'list', count: data.length },
     });
-    return { code: 200, msg: 'Role list fetched', data };
+    return { code: 200, msg: '角色列表获取成功', data };
   }
 
   @Post('update')
@@ -40,7 +41,7 @@ export class RoleController {
     });
     await this.roleService.update(updateRoleDto);
     this.loggingService.log('POST /system/role/update success');
-    return { code: 200, msg: 'Role updated', data: null };
+    return { code: 200, msg: '角色更新成功', data: null };
   }
 
   @Delete('delete/:publicId')
@@ -50,6 +51,6 @@ export class RoleController {
     });
     await this.roleService.delete(publicId);
     this.loggingService.log('DELETE /system/role/delete/:publicId success');
-    return { code: 200, msg: 'Role deleted', data: null };
+    return { code: 200, msg: '角色删除成功', data: null };
   }
 }

@@ -18,11 +18,18 @@ export class MenuService {
   async create(createMenuDto: CreateMenuDto) {
     const menu = this.menuRepository.create(createMenuDto);
     if (createMenuDto.parentPublicId) {
-      const parentMenu = await this.menuRepository.findOne({
-        where: { publicId: createMenuDto.parentPublicId },
-      });
+      let parentMenu: SysMenu | null = null;
+
+      try {
+        parentMenu = await this.menuRepository.findOne({
+          where: { publicId: createMenuDto.parentPublicId },
+        });
+      } catch (e: any) {
+        throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
+      }
+
       if (!parentMenu) {
-        throw new BadRequestException('Parent menu not found');
+        throw new BadRequestException({ msg: '父菜单不存在', code: 400 });
       }
       menu.parentId = parentMenu.id;
       menu.ancestors = `${parentMenu.ancestors},${parentMenu.id}`;
@@ -30,43 +37,59 @@ export class MenuService {
       menu.parentId = 0;
       menu.ancestors = '0';
     }
+
     try {
       await this.menuRepository.save(menu);
     } catch (e: any) {
-      const code = e?.code;
-      const msg = String(e?.sqlMessage || e?.message || '');
-      if (code === 'ER_DUP_ENTRY') {
-        throw new BadRequestException('菜单名称已存在');
-      }
-      throw new BadRequestException('菜单创建失败');
+      throw new BadRequestException({ msg: '数据库保存错误', code: 400 });
     }
   }
 
   async list(): Promise<(FrontendMenuDto & { children: (FrontendMenuDto & { children: any[] })[] })[]> {
-    const menus = await this.menuRepository.find();
+    let menus: SysMenu[] = [];
+    try {
+      menus = await this.menuRepository.find();
+    } catch (e: any) {
+      throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
+    }
     return buildTree<SysMenu, FrontendMenuDto>(menus, toFrontendDto);
   }
 
   async get(publicId: string) {
-    const menu = await this.menuRepository.findOne({ where: { publicId } });
+    let menu: SysMenu | null = null;
+    try {
+      menu = await this.menuRepository.findOne({ where: { publicId } });
+    } catch (e: any) {
+      throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
+    }
     if (!menu) {
-      throw new BadRequestException('Menu not found');
+      throw new BadRequestException({ msg: '菜单不存在', code: 400 });
     }
     return menu;
   }
 
   async update(updateMenuDto: UpdateMenuDto) {
-    const menu = await this.menuRepository.findOne({ where: { publicId: updateMenuDto.publicId } });
+    let menu: SysMenu | null = null;
+    try {
+      menu = await this.menuRepository.findOne({ where: { publicId: updateMenuDto.publicId } });
+    } catch (e: any) {
+      throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
+    }
     if (!menu) {
-      throw new BadRequestException('Menu not found');
+      throw new BadRequestException({ msg: '菜单不存在', code: 400 });
     }
 
     if (updateMenuDto.parentPublicId) {
-      const parentMenu = await this.menuRepository.findOne({
-        where: { publicId: updateMenuDto.parentPublicId },
-      });
+      let parentMenu: SysMenu | null = null;
+      try {
+        parentMenu = await this.menuRepository.findOne({
+          where: { publicId: updateMenuDto.parentPublicId },
+        });
+      } catch (e: any) {
+        throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
+      }
       if (!parentMenu) {
-        throw new BadRequestException('Parent menu not found');
+        throw new BadRequestException({ msg: '父菜单不存在', code: 400 });
       }
       menu.parentId = parentMenu.id;
       menu.ancestors = `${parentMenu.ancestors},${parentMenu.id}`;
@@ -77,32 +100,43 @@ export class MenuService {
     try {
       await this.menuRepository.save(menu);
     } catch (e: any) {
-      const code = e?.code;
-      const msg = String(e?.sqlMessage || e?.message || '');
-      if (code === 'ER_DUP_ENTRY') {
-        throw new BadRequestException('Menu name already exists');
-      }
-      throw new BadRequestException(`Failed to update menu: ${msg}`);
+      throw new BadRequestException({ msg: '数据库更新错误', code: 400 });
     }
   }
 
   async delete(publicId: string) {
-    const menu = await this.menuRepository.findOne({ where: { publicId } });
-    if (!menu) {
-      throw new BadRequestException('Menu not found');
+    let menu: SysMenu | null = null;
+    try {
+      menu = await this.menuRepository.findOne({ where: { publicId } });
+    } catch (e: any) {
+      throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
     }
+    if (!menu) {
+      throw new BadRequestException({ msg: '菜单不存在', code: 400 });
+    }
+    
     try {
       await this.menuRepository.softRemove(menu);
-      const subMenus = await this.menuRepository
+    } catch (e: any) {
+      throw new BadRequestException({ msg: '数据库删除错误', code: 400 });
+    }
+
+    let subMenus: SysMenu[] = [];
+    try {
+      subMenus = await this.menuRepository
         .createQueryBuilder('menu')
         .where('menu.ancestors LIKE :ancestorId', { ancestorId: `%${menu.id}%` })
         .getMany();
-      if (subMenus.length > 0) {
-        await this.menuRepository.softRemove(subMenus);
-      }
-      return { success: true, msg: '菜单删除成功' };
     } catch (e: any) {
-      throw new BadRequestException('菜单删除失败');  
+      throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
+    }
+
+    if (subMenus.length > 0) {
+      try {
+        await this.menuRepository.softRemove(subMenus);
+      } catch (e: any) {
+        throw new BadRequestException({ msg: '数据库删除错误', code: 400 });
+      }
     }
   }
 }

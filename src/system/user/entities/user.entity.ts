@@ -19,8 +19,8 @@ import { SysDept } from '@/system/dept/entities/dept.entity';
 import { SysRole } from '@/system/role/entities/role.entity';
 
 @Entity('sys_user')
-@Index(['account', 'deletedAt'], { unique: true })
-@Index(['email', 'deletedAt'], { unique: true })
+@Index('uniq_sys_user_account_active', ['activeAccount'], { unique: true })
+@Index('uniq_sys_user_email_active', ['activeEmail'], { unique: true })
 export class SysUser {
   // 使用装饰器：@PrimaryGeneratedColumn，修饰的字段为主键，且自增。
   // @PrimaryGeneratedColumn装饰器可以传入一个Column options对象，用于配置主键列的行为。
@@ -36,23 +36,45 @@ export class SysUser {
   })
   publicId: string;
 
-  @Column({length: 255,comment: '用户名称' })
+  @Column({ length: 255, comment: '用户名称' })
   name: string;
 
-  @Column({length: 255 ,comment: '用户账号'})
+  @Column({ length: 255, comment: '用户账号' })
   account: string;
 
-  @Column({length: 255 ,comment: '用户邮箱' })
+  @Column({
+    name: 'active_account',
+    type: 'varchar',
+    length: 320,
+    asExpression:
+      "case when deleted_at is null then account else concat(account, '#', public_id) end",
+    generatedType: 'VIRTUAL',
+    select: false,
+  })
+  activeAccount: string;
+
+  @Column({ length: 255, comment: '用户邮箱' })
   email: string;
+
+  @Column({
+    name: 'active_email',
+    type: 'varchar',
+    length: 320,
+    asExpression:
+      "case when deleted_at is null then email else concat(email, '#', public_id) end",
+    generatedType: 'VIRTUAL',
+    select: false,
+  })
+  activeEmail: string;
 
   @Column({
     length: 1,
     default: '0',
-    comment: '用户性别（0未知 1男 2女）',
+    comment: '用户性别（未知 1男2女）',
   })
   sex: string;
 
-  @Column({length: 255, default: '' ,comment: '用户头像url'})
+  @Column({ length: 255, default: '', comment: '用户头像url' })
   avatar: string;
 
   @Column({ length: 255 })
@@ -61,7 +83,7 @@ export class SysUser {
   @Column({
     length: 1,
     default: '1',
-    comment: '帐号状态（0停用 1正常）',
+    comment: '账户状态（0停用 1正常）',
   })
   status: string;
 
@@ -110,13 +132,13 @@ export class SysUser {
   // @ManyToOne装饰器定义了一个从SysUser到SysDept的关系。
   // 第一个参数是一个函数，用于指定这个字段关联的实体类型，使用函数是为了防止循环依赖。
   // 第二个参数是一个函数，用于指定关联的实体中的反向引用属性。
-  // （ 实际上，在我看来，这个参数是多余的，完全不需要显示指出dept实体类中，哪个字段是被引用的，
-  // 首先，在user中我们是多对一的关系，因此实际真实引入了一个外键，
+  // （实际上，在我看来，这个参数是多余的，完全不需要显示指出dept实体类中，哪个字段是被引用的？）
+  // 首先，在user中我们是多对一的关系，因此实际真 实引入了一个外键，
   // 然后@JoinColumn指出了当前字段在表中的名字，即表中实际的外键名字。同时还隐式的指明了
-  // 这个字段引用的是SysDept实体中的主键字段。因此我觉得即使不传递第二个参数，也是完全能够知道这两个实体类之间的关系的。
-  // 即应该可以正确的执行const user = await userRepository.findOne(1, { relations: ['dept'] }); ）
+  // 这个字段引用的是SysDept实体中的主键字段。因此我觉得即使不传递第二个参数，也是完全能够知道这两个实体类之间的关系的？
+  // 即应该可以正确的执行const user = await userRepository.findOne(1, { relations: ['dept'] }); ？
   // 
-  // @ManyToOne还可以传入第三个参数，这里影响不大，先不谈论
+  // @ManyToOne还可以传入第三个参数，这里影响不大，先不讨论
 
   @ManyToOne(() => SysDept)
   // @JoinColumn可以传入一个对象，这个对象可以具有三个属性：
@@ -124,22 +146,22 @@ export class SysUser {
   // referencedColumnName：指定关联实体中的能够作为外键列的名称。如果不指定，默认使用关联实体的主键列名。
   // nullable：指定外键列是否可以为NULL。如果不指定，默认根据关联实体的主键列是否为NULL来确定。
   // =====================
-  // 这里指定外键为另一个表的非主键时，也是支持的。在查询时，typeorm会自动根据非主键字段去查询关联实体，只要非主键字段的值与外键值相等，就可以查询到关联实体。
+  // 这里指定外键为另一张表的非主键时，也是支持的。在查询时，typeorm会自动根据非主键字段去查询关联实体，只要非主键字段的值与外键值相等，就可以查询到关联实体。
   // =====================
   @JoinColumn({ name: 'dept_id'})
-  // 这里可能会有迷惑，此实体类中的dept属性的类型是一个完整的实体类，而在表中映射的却是一个字符串外键。
-  // 这是没什么问题的，因为他们并没有什么直接关联，@JoinColumn装饰器只是给这个类属性添加了一个元数据罢了.
+  // 这里可能会有迷惑，此实体类中的dept属性的类型是一个完整的实体类，而在表中映射的却是一个字符串外键？
+  // 这是没什么问题的，因为他们并没有什么直接关联，@JoinColumn装饰器只是给这个类属性添加了一个元数据罢了。
   // TypeORM利用这个元数据去构建真实的表。
-  // 我们在查询时，可以使用relations选项来指定关联查询，TypeORM会自动根据这个元数据去构建SQL语句，
+  // 我们在查询时，可以使用relations选项来指定关联查询，TypeORM会自动根据这个元数据去构建SQL语句？
   // 并将一个完整的关联对象的属性填充到查询结果中。
   dept: SysDept;  
 
-  // 这个定义不定义无所谓，不会在表里生成一个对应的列，只是在查询得到结果时，把关联对象的主键提取出来，单独赋值给deptId字段。。
+  // 这个定义不定义无所谓，不会在表里生成一个对应的列，只是在查询得到结果时，把关联对象的主键提取出来，单独赋值给deptId字段。
   @RelationId((user:SysUser)=> user.dept)
-  deptId:string
+  deptId: string;
 
-  // 用户角色关联 (通过中间表 sys_user_role)
-  // 使用 @ManyToMany 是常用的方式，但如果你想操作中间表的额外字段，可以保留 @OneToMany
+  // 用户角色关联 (通过中间表sys_user_role)
+  // 使用 @ManyToMany 是常用的方式，但如果你想操作中间表的额外字段，可以保持@OneToMany
   @ManyToMany(() => SysRole, (role) => role.users)
   // 可以不写和只在一个表中写，不能两个表中都写，否则报错
   @JoinTable({

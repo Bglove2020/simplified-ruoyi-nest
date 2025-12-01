@@ -62,7 +62,7 @@ import { SysMenu } from './system/menu/entities/menu.entity';
           // 慢查询阈值：查询执行时间超过此值（毫秒）时，会触发 logQuerySlow 方法
           // TypeORM 会自动测量查询执行时间，如果超过此阈值，会自动调用 logger.logQuerySlow()
           maxQueryExecutionTime: enableSqlLogging ? maxQueryExecutionTime : undefined,
-          // synchronize: true, // 建议仅在开发环境开启
+          synchronize: true, // 建议仅在开发环境开启
           // dropSchema: true, // 建议仅在开发环境开启
         };
       },

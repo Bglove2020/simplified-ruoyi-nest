@@ -3,14 +3,12 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
-  ManyToOne,
-  ManyToMany,
+  ManyToOne,  
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
   BeforeInsert,
-  DeleteDateColumn,
-  Index,
+  DeleteDateColumn, Index,
 } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { SysUser } from '@/system/user/entities/user.entity';
@@ -24,7 +22,7 @@ import { SysUser } from '@/system/user/entities/user.entity';
 
 // mysql在windows平台下不区分数据库名、表名、列名的大小写，因此建议使用小写字母+下划线的形式
 @Entity('sys_dept')
-@Index(['name', 'deletedAt'], { unique: true })
+@Index('uniq_sys_dept_active_name', ['activeName'], { unique: true })
 export class SysDept {
   @PrimaryGeneratedColumn({
     comment: '部门id，有序，自增，非uuid',
@@ -45,8 +43,19 @@ export class SysDept {
   name: string;
 
   @Column({
+    name: 'active_name',
+    type: 'varchar',
+    length: 320,
+    asExpression:
+      "case when deleted_at is null then name else concat(name, '#', public_id) end",
+    generatedType: 'VIRTUAL',
+    select: false,
+  })
+  activeName: string;
+
+  @Column({
     name: 'parent_id',
-    comment: '父部门id，0表示根部门',
+    comment: '父部门id（表示根部门为0）',
   })
   parentId: number;
 
@@ -66,7 +75,7 @@ export class SysDept {
   @Column({
     name: 'status',
     default: '1',
-    comment: '部门状态（0停用 1正常）'
+    comment: '部门状态（0停用 1正常）',
   })
   status: string;
 
