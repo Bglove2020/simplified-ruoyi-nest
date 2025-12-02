@@ -1,17 +1,24 @@
 import { Module } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UserModule } from '../system/user/user.module'; // 确保引入 UserModule
 import { ConfigService } from '@nestjs/config';
 import type ms from 'ms';
+import { ProfileController } from './profile.controller';
+import { ProfileService } from './profile.service';
+import { SysUser } from '@/system/user/entities/user.entity';
+import { SysMenu } from '@/system/menu/entities/menu.entity';
 
 @Module({
   imports: [
-    UserModule
+    UserModule,
+    TypeOrmModule.forFeature([SysUser, SysMenu]),
   ],
   providers: [
     AuthService,
+    ProfileService,
     {
       provide: 'ACCESS_JWT',
       useFactory: (config: ConfigService) =>
@@ -32,7 +39,7 @@ import type ms from 'ms';
       inject: [ConfigService],
     }
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, ProfileController],
   exports: [AuthService, 'ACCESS_JWT', 'REFRESH_JWT'], 
 })
 export class AuthModule {}
