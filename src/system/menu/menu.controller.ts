@@ -1,9 +1,18 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { MenuService } from './menu.service';
 import { CreateMenuDto } from './dto/create-menu.dto';
 import { UpdateMenuDto } from './dto/update-menu.dto';
 import FrontendMenuDto from './dto/frontend-menu.dto';
 import { LoggingService } from '@/common/logging/logging.service';
+import { RequirePerms } from '@/auth/decorators/perms.decorator';
 
 @Controller('system/menu')
 export class MenuController {
@@ -12,6 +21,7 @@ export class MenuController {
     private readonly loggingService: LoggingService,
   ) {}
 
+  @RequirePerms('system:menu:add')
   @Post('create')
   async create(@Body() createMenuDto: CreateMenuDto) {
     this.loggingService.log('POST /system/menu/create', {
@@ -22,11 +32,14 @@ export class MenuController {
     return { code: 200, msg: '菜单创建成功', data: null };
   }
 
+  @RequirePerms('system:menu:list')
   @Get('list')
   async list(): Promise<{
     code: number;
     msg: string;
-    data: (FrontendMenuDto & { children: (FrontendMenuDto & { children: any[] })[] })[];
+    data: (FrontendMenuDto & {
+      children: (FrontendMenuDto & { children: any[] })[];
+    })[];
   }> {
     this.loggingService.log('GET /system/menu/list');
     const data = await this.menuService.list();
@@ -36,6 +49,7 @@ export class MenuController {
     return { code: 200, msg: '菜单列表获取成功', data };
   }
 
+  @RequirePerms('system:menu:query')
   @Get(':id')
   async findOne(@Param('id') publicId: string) {
     this.loggingService.log('GET /system/menu/:id', {
@@ -48,6 +62,7 @@ export class MenuController {
     return { code: 200, msg: '菜单获取成功', data };
   }
 
+  @RequirePerms('system:menu:update')
   @Post('update')
   async update(@Body() updateMenuDto: UpdateMenuDto) {
     this.loggingService.log('POST /system/menu/update', {
@@ -58,9 +73,12 @@ export class MenuController {
     return { code: 200, msg: '菜单更新成功', data: null };
   }
 
+  @RequirePerms('system:menu:delete')
   @Delete('delete')
   async delete(@Query('publicId') publicId: string) {
-    this.loggingService.log('DELETE /system/menu/delete', { params: { publicId } });
+    this.loggingService.log('DELETE /system/menu/delete', {
+      params: { publicId },
+    });
     await this.menuService.delete(publicId);
     this.loggingService.log('DELETE /system/menu/delete success');
     return { code: 200, msg: '菜单删除成功', data: null };

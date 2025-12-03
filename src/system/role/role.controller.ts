@@ -5,6 +5,7 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { LoggingService } from '@/common/logging/logging.service';
 import FrontendRoleDto from './dto/frontend-role.dto';
 import { toFrontendDtoList } from './mapper/to-frontend-user.mapper';
+import { RequirePerms } from '@/auth/decorators/perms.decorator';
 
 @Controller('system/role')
 export class RoleController {
@@ -13,16 +14,20 @@ export class RoleController {
     private readonly loggingService: LoggingService,
   ) {}
 
+  @RequirePerms('system:role:add')
   @Post('create')
   async create(@Body() createRoleDto: CreateRoleDto) {
     this.loggingService.log('POST /system/role/create', {
       requestDescriptor: { data: createRoleDto },
     });
+
     await this.roleService.create(createRoleDto);
+
     this.loggingService.log('POST /system/role/create success');
     return { code: 200, msg: '角色创建成功', data: null };
   }
 
+  @RequirePerms('system:role:list')
   @Get('list')
   async list() {
     this.loggingService.log('GET /system/role/list');
@@ -34,6 +39,7 @@ export class RoleController {
     return { code: 200, msg: '角色列表获取成功', data };
   }
 
+  @RequirePerms('system:role:update')
   @Post('update')
   async update(@Body() updateRoleDto: UpdateRoleDto) {
     this.loggingService.log('POST /system/role/update', {
@@ -44,6 +50,7 @@ export class RoleController {
     return { code: 200, msg: '角色更新成功', data: null };
   }
 
+  @RequirePerms('system:role:delete')
   @Delete('delete/:publicId')
   async delete(@Param('publicId') publicId: string) {
     this.loggingService.log('DELETE /system/role/delete/:publicId', {

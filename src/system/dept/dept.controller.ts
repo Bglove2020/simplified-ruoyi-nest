@@ -4,6 +4,7 @@ import { CreateDeptDto } from './dto/create-dept.dto';
 import { UpdateDeptDto } from './dto/update-dept.dto';
 import FrontendDeptDto from './dto/frontend-dept.dto';
 import { LoggingService } from '@/common/logging/logging.service';
+import { RequirePerms } from '@/auth/decorators/perms.decorator';
 
 @Controller('system/dept')
 export class DeptController {
@@ -12,6 +13,7 @@ export class DeptController {
     private readonly loggingService: LoggingService,
   ) {}
 
+  @RequirePerms('system:dept:add')
   @Post('create')
   async create(@Body() createDeptDto: CreateDeptDto) {
     this.loggingService.log('POST /system/dept/create', {
@@ -22,11 +24,14 @@ export class DeptController {
     return { code: 200, msg: '创建成功', data: null };
   }
 
+  @RequirePerms('system:dept:list')
   @Get('list')
   async list(): Promise<{
     code: number;
     msg: string;
-    data: (FrontendDeptDto & { children: (FrontendDeptDto & { children: any[] })[] })[];
+    data: (FrontendDeptDto & {
+      children: (FrontendDeptDto & { children: any[] })[];
+    })[];
   }> {
     this.loggingService.log('GET /system/dept/list');
     const result = await this.deptService.list();
@@ -36,6 +41,7 @@ export class DeptController {
     return { code: 200, msg: '查询成功', data: result };
   }
 
+  @RequirePerms('system:dept:update')
   @Post('update')
   async update(@Body() updateDeptDto: UpdateDeptDto) {
     this.loggingService.log('POST /system/dept/update', {
@@ -46,6 +52,7 @@ export class DeptController {
     return { code: 200, msg: '更新成功', data: null };
   }
 
+  @RequirePerms('system:dept:delete')
   @Delete('delete')
   async delete(@Query('publicId') publicId: string) {
     this.loggingService.log('DELETE /system/dept/delete', {
