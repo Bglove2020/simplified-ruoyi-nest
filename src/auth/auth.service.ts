@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UserService } from '@/system/user/user.service';
@@ -21,7 +26,7 @@ export class AuthService {
 
   async validateUser(userAccount: string, pass: string): Promise<any> {
     const user = await this.userService.getByAccount(userAccount);
-    console.log('validateUser',user);
+    console.log('validateUser', user);
     if (user && (await bcrypt.compare(pass, user.password))) {
       const { password, ...result } = user;
       return result;
@@ -32,7 +37,7 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const user = await this.validateUser(loginDto.account, loginDto.password);
     if (!user) {
-      throw new BadRequestException({msg: '用户名或密码错误', code: 400});
+      throw new BadRequestException({ msg: '用户名或密码错误', code: 400 });
     }
     const roleKeys = Array.from(
       new Set(
@@ -60,8 +65,11 @@ export class AuthService {
         this.alsService.updateContext({ userPublicId: payload.sub });
       }
       const roleKeys =
-        Array.isArray((payload as any).roleKeys) && (payload as any).roleKeys.length > 0
-          ? Array.from(new Set((payload as any).roleKeys.filter((k: any) => !!k)))
+        Array.isArray((payload as any).roleKeys) &&
+        (payload as any).roleKeys.length > 0
+          ? Array.from(
+              new Set((payload as any).roleKeys.filter((k: any) => !!k)),
+            )
           : [];
       const newAccessToken = await this.accessJwtService.signAsync({
         userAccount: payload.userAccount,
@@ -70,7 +78,7 @@ export class AuthService {
       });
       return { accessToken: newAccessToken };
     } catch (error) {
-      throw new UnauthorizedException({msg: '刷新令牌无效', code: 401});
+      throw new UnauthorizedException({ msg: '刷新令牌无效', code: 401 });
     }
   }
 }

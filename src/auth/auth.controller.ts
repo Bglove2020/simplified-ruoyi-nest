@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Res, Req } from '@nestjs/common';
+import { Body, Controller, Post, Res, Req, Get } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Public } from './public.decorator';
 import { AuthService } from './auth.service';
@@ -37,7 +37,8 @@ export class AuthController {
         ip: req.ip,
       },
     });
-    const { accessToken, refreshToken } = await this.authService.login(loginDto);
+    const { accessToken, refreshToken } =
+      await this.authService.login(loginDto);
 
     res.cookie('refresh_token', `Bearer ${refreshToken}`, {
       httpOnly: true,
@@ -48,6 +49,14 @@ export class AuthController {
       responseDescriptor: { data: { accessToken } },
     });
     return { code: 200, msg: '登录成功', data: { accessToken } };
+  }
+
+  @Post('logout')
+  async logout(@Res({ passthrough: true }) res: Response) {
+    this.loggingService.log('GET /auth/logout');
+    res.setHeader('Set-Cookie', 'refresh_token=; HttpOnly; Path=/; Max-Age=0');
+    this.loggingService.log('GET /auth/logout success');
+    return { code: 200, msg: '退出成功', data: null };
   }
 
   @Public()
