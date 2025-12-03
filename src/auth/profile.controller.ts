@@ -17,13 +17,23 @@ export class ProfileController {
     return { code: 200, msg: '获取成功', data };
   }
 
-  @Get('getRouters')
-  async getRouters() {
-    this.loggingService.log('GET /getRouters');
-    const data = await this.profileService.getRouters();
-    this.loggingService.log('GET /getRouters success', {
-      responseDescriptor: { type: 'list', data: data },
-    });
-    return { code: 200, msg: '获取成功', data };
-  }
+    @Get('getRouters')
+    async getRouters() {
+      this.loggingService.log('GET /getRouters');
+      const data = await this.profileService.getRouters();
+      this.loggingService.log('GET /getRouters success', {
+        responseDescriptor: { type: 'list', data: data },
+      });
+      return { code: 200, msg: '获取成功', data };
+    }
+
+    @Get('getSideBarMenus')
+    async getSideBarMenus() {
+      this.loggingService.log('GET /getSideBarMenus');
+      const data = await this.profileService.getSideBarMenus();
+      this.loggingService.log('GET /getSideBarMenus success', {
+        responseDescriptor: { type: 'list', data: data },
+      });
+      return { code: 200, msg: '获取成功', data };
+    }
 }

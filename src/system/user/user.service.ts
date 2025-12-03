@@ -83,18 +83,23 @@ export class UserService {
       throw new BadRequestException({msg: '数据库查询错误', code: 400});
     }
 
-    let roles: SysRole[] = [];
-    try{
-      roles = await this.roleRepository.find({
-        where: { publicId: In(createUserDto.rolePublicIds) },
-      }); 
+    let roles: Partial<SysRole>[] = [];
+    if(createUserDto.rolePublicIds && createUserDto.rolePublicIds.length > 0){
+      try{
+        roles = await this.roleRepository.find({
+          where: { publicId: In(createUserDto.rolePublicIds) },
+        });
+      }catch(e: any){
+        throw new BadRequestException({msg: '数据库查询错误', code: 400});
+      }
       if (roles.length !== createUserDto.rolePublicIds.length) {
         throw new BadRequestException({msg: '部分角色不存在', code: 400});
       }
     }
-    catch(e: any){
-      throw new BadRequestException({msg: '数据库查询错误', code: 400});
+    else{
+      roles = [{id:1}];
     }
+
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
     const user = this.userRepository.create({

@@ -31,11 +31,13 @@ export type RouterMeta = {
 export type RouterItem = {
   name: string;
   path: string;
-  isFrame: boolean;
-  menuType: string;
-  visible: boolean;
-  perms: string | null;
-  children: RouterItem[];
+};
+
+export type SideBarItem = {
+  title: string;
+  url: string | null;
+  hidden: boolean;
+  frame: boolean;
 };
 
 @Injectable()
@@ -168,34 +170,52 @@ export class ProfileService {
       menus = this.dedupMenus(menus);
     }
 
-    const menuNodes = menus.filter((menu) => menu.menuType === 'M' || menu.menuType === 'C');
-    return buildTree<SysMenu, RouterItem>(menuNodes, this.toRouterItem);
+    // 这里是路由接口，只有菜单menu才对应有组件路由，并且不能是外链
+    const menuNodes = menus.filter((menu) => menu.menuType === 'C' && menu.isFrame === '0').map((menu) => this.toRouterItem(menu));
+    return menuNodes
   }
 
-  // private buildRouterTree(menus: SysMenu[]): RouterItem[] {
-  //   const nodeMap = new Map<number, RouterItem>();
-  //   const roots: RouterItem[] = [];
+  async getSideBarMenus(){
+    const userPublicId = this.als.getUserPublicId()!;
 
-  //   menus.forEach((menu) => {
-  //     nodeMap.set(menu.id, this.toRouterItem(menu));
-  //   });
+    let user: SysUser | null = null;
+    try{
+      user = await this.userRepository.findOne({
+        where: { publicId: userPublicId },
+        relations: { roles: true },
+      });
+    }catch(e: any){
+      throw new BadRequestException({msg: '数据库查询错误', code: 400});
+    }
+    if (!user) {
+      throw new UnauthorizedException({ msg: '用户不存在或已删除', code: 401 });
+    }
 
-  //   menus.forEach((menu) => {
-  //     const node = nodeMap.get(menu.id)!;
-  //     if (menu.parentId === 0 || !nodeMap.has(menu.parentId)) {
-  //       roots.push(node);
-  //       return;
-  //     }
-  //     const parent = nodeMap.get(menu.parentId);
-  //     if (parent) {
-  //       parent.children.push(node);
-  //     } else {
-  //       roots.push(node);
-  //     }
-  //   });
+    const roleKeys = user.roles.map((role) => role.roleKey);
+    const isAdmin = roleKeys.includes('admin');
 
-  //   return roots;
-  // }
+    let menus: SysMenu[] = [];
+    if (isAdmin) {
+      menus = await this.menuRepository.find({
+        where: { status: '1' },
+        order: { parentId: 'ASC', sortOrder: 'ASC' },
+      });
+    } else if (user.roles.length > 0) {
+      const roleIds = user.roles.map((role) => role.id);
+      menus = await this.menuRepository
+        .createQueryBuilder('menu')
+        .innerJoin('menu.roles', 'role', 'role.id IN (:...roleIds)', { roleIds })
+        .where('menu.status = :status', { status: '1' })
+        .andWhere('menu.deletedAt IS NULL')
+        .orderBy('menu.parentId', 'ASC')
+        .addOrderBy('menu.sortOrder', 'ASC')
+        .getMany();
+      menus = this.dedupMenus(menus);
+    }
+
+    menus = menus.filter((menu) => menu.visible === '1');
+    return buildTree<SysMenu, SideBarItem>(menus, this.toSideBarItem);
+  }
 
   // 根据对象某个字段进行去重，需要使用map。set无法对对象进行去重
   private dedupMenus(menus: SysMenu[]): SysMenu[] {
@@ -206,14 +226,17 @@ export class ProfileService {
 
   private toRouterItem(menu: SysMenu){
     return {
-      publicId: menu.publicId,
       name: menu.name,
-      path: menu.path ?? '#',
-      isFrame: menu.isFrame === '1',
-      menuType: menu.menuType,
-      visible: menu.visible === '1',
-      perms: menu.perms,
-      children: [],
+      path: menu.path!,
+    };
+  }
+
+  private toSideBarItem(menu: SysMenu){
+    return {
+      title: menu.name,
+      url: menu.path,
+      hidden: menu.visible === '0',
+      frame: menu.isFrame === '1',
     };
   }
 }
