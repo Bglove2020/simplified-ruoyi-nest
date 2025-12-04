@@ -28,6 +28,9 @@ import { SysUser } from './system/user/entities/user.entity';
 import { SysRole } from './system/role/entities/role.entity';
 import { SysDept } from './system/dept/entities/dept.entity';
 import { SysMenu } from './system/menu/entities/menu.entity';
+import { DictModule } from './system/dict/dict.module';
+import { SysDict } from './system/dict/entities/dict.entity';
+import { SysDictData } from './system/dict/entities/dict-data.entity';
 
 @Module({
   imports: [
@@ -83,13 +86,21 @@ import { SysMenu } from './system/menu/entities/menu.entity';
       inject: [ConfigService, LoggingService],
     }),
     // 注册实体以便DatabaseSeedService使用
-    TypeOrmModule.forFeature([SysUser, SysRole, SysDept, SysMenu]),
+    TypeOrmModule.forFeature([
+      SysUser,
+      SysRole,
+      SysDept,
+      SysMenu,
+      SysDict,
+      SysDictData,
+    ]),
     AuthModule,
     AlsModule,
     LoggingModule,
     DeptModule,
     MenuModule,
     RoleModule,
+    DictModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

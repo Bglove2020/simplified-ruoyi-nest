@@ -5,6 +5,8 @@ import { SysUser } from '@/system/user/entities/user.entity';
 import { SysRole } from '@/system/role/entities/role.entity';
 import { SysDept } from '@/system/dept/entities/dept.entity';
 import { SysMenu } from '@/system/menu/entities/menu.entity';
+import { SysDict } from '@/system/dict/entities/dict.entity';
+import { SysDictData } from '@/system/dict/entities/dict-data.entity';
 import * as bcrypt from 'bcryptjs';
 import { LoggingService } from '../logging/logging.service';
 
@@ -23,6 +25,10 @@ export class DatabaseSeedService {
     private deptRepository: Repository<SysDept>,
     @InjectRepository(SysMenu)
     private menuRepository: Repository<SysMenu>,
+    @InjectRepository(SysDict)
+    private dictRepository: Repository<SysDict>,
+    @InjectRepository(SysDictData)
+    private dictDataRepository: Repository<SysDictData>,
     private readonly loggingService: LoggingService,
   ) {}
 
@@ -53,7 +59,11 @@ export class DatabaseSeedService {
       await this.createMenus(role);
       this.loggingService.log('菜单数据初始化完成');
 
-      // 4. 创建用户
+      // // 4. 创建字典
+      // await this.createDicts();
+      // this.loggingService.log('字典数据初始化完成');
+
+      // 5. 创建用户
       await this.createUser(dept, role);
       this.loggingService.log('用户数据初始化完成');
 
@@ -74,7 +84,7 @@ export class DatabaseSeedService {
       sortOrder: 0,
       status: '1',
       updateBy: 'auto_seed',
-      createBy: 'auto_seed',    
+      createBy: 'auto_seed',
     });
 
     return await this.deptRepository.save(dept);
@@ -186,6 +196,22 @@ export class DatabaseSeedService {
     });
     const savedMenuMenu = await this.menuRepository.save(menuMenu);
 
+    const dictMenu = this.menuRepository.create({
+      name: '字典管理',
+      parentId: savedSystemMenu.id,
+      ancestors: `0,${savedSystemMenu.id}`,
+      sortOrder: 5,
+      path: '/system/dict-management',
+      menuType: 'C',
+      visible: '1',
+      status: '1',
+      isFrame: '0',
+      perms: 'system:dict:list',
+      createBy: 'auto_seed',
+      updateBy: 'auto_seed',
+    });
+    const savedDictMenu = await this.menuRepository.save(dictMenu);
+
     // 将所有菜单关联到角色
     role.menus = [
       savedSystemMenu,
@@ -193,9 +219,149 @@ export class DatabaseSeedService {
       savedRoleMenu,
       savedDeptMenu,
       savedMenuMenu,
+      savedDictMenu,
     ];
     await this.roleRepository.save(role);
   }
+
+  /**
+   * 创建初始字典数据
+   */
+  // private async createDicts(): Promise<void> {
+  //   const dictCount = await this.dictTypeRepository.count();
+  //   if (dictCount > 0) {
+  //     return;
+  //   }
+
+  //   const normalDisable = this.dictTypeRepository.create({
+  //     dictName: '系统状态',
+  //     dictType: 'sys_normal_disable',
+  //     status: '1',
+  //     remark: '启用/停用状态',
+  //     createBy: 'auto_seed',
+  //     updateBy: 'auto_seed',
+  //   });
+  //   const userSex = this.dictTypeRepository.create({
+  //     dictName: '用户性别',
+  //     dictType: 'sys_user_sex',
+  //     status: '1',
+  //     remark: '用户性别字典',
+  //     createBy: 'auto_seed',
+  //     updateBy: 'auto_seed',
+  //   });
+  //   const showHide = this.dictTypeRepository.create({
+  //     dictName: '显示状态',
+  //     dictType: 'sys_show_hide',
+  //     status: '1',
+  //     remark: '显示/隐藏',
+  //     createBy: 'auto_seed',
+  //     updateBy: 'auto_seed',
+  //   });
+
+  //   const [savedNormalDisable, savedUserSex, savedShowHide] =
+  //     await this.dictTypeRepository.save([normalDisable, userSex, showHide]);
+
+  //   const dictDataEntities = [
+  //     // sys_normal_disable
+  //     this.dictDataRepository.create({
+  //       dictType: savedNormalDisable.dictType,
+  //       dictLabel: '启用',
+  //       dictValue: '1',
+  //       dictSort: 1,
+  //       isDefault: 'Y',
+  //       status: '1',
+  //       listClass: 'success',
+  //       remark: '',
+  //       createBy: 'auto_seed',
+  //       updateBy: 'auto_seed',
+  //       dictTypeEntity: savedNormalDisable,
+  //     }),
+  //     this.dictDataRepository.create({
+  //       dictType: savedNormalDisable.dictType,
+  //       dictLabel: '停用',
+  //       dictValue: '0',
+  //       dictSort: 2,
+  //       isDefault: 'N',
+  //       status: '1',
+  //       listClass: 'secondary',
+  //       remark: '',
+  //       createBy: 'auto_seed',
+  //       updateBy: 'auto_seed',
+  //       dictTypeEntity: savedNormalDisable,
+  //     }),
+  //     // sys_user_sex
+  //     this.dictDataRepository.create({
+  //       dictType: savedUserSex.dictType,
+  //       dictLabel: '男',
+  //       dictValue: '1',
+  //       dictSort: 1,
+  //       isDefault: 'N',
+  //       status: '1',
+  //       listClass: 'primary',
+  //       remark: '',
+  //       createBy: 'auto_seed',
+  //       updateBy: 'auto_seed',
+  //       dictTypeEntity: savedUserSex,
+  //     }),
+  //     this.dictDataRepository.create({
+  //       dictType: savedUserSex.dictType,
+  //       dictLabel: '女',
+  //       dictValue: '2',
+  //       dictSort: 2,
+  //       isDefault: 'N',
+  //       status: '1',
+  //       listClass: 'rose',
+  //       remark: '',
+  //       createBy: 'auto_seed',
+  //       updateBy: 'auto_seed',
+  //       dictTypeEntity: savedUserSex,
+  //     }),
+  //     this.dictDataRepository.create({
+  //       dictType: savedUserSex.dictType,
+  //       dictLabel: '未知',
+  //       dictValue: '0',
+  //       dictSort: 3,
+  //       isDefault: 'Y',
+  //       status: '1',
+  //       listClass: 'muted',
+  //       remark: '',
+  //       createBy: 'auto_seed',
+  //       updateBy: 'auto_seed',
+  //       dictTypeEntity: savedUserSex,
+  //     }),
+  //     // sys_show_hide
+  //     this.dictDataRepository.create({
+  //       dictType: savedShowHide.dictType,
+  //       dictLabel: '显示',
+  //       dictValue: '1',
+  //       dictSort: 1,
+  //       isDefault: 'Y',
+  //       status: '1',
+  //       listClass: 'success',
+  //       remark: '',
+  //       createBy: 'auto_seed',
+  //       updateBy: 'auto_seed',
+  //       dict: savedShowHide,
+  //       dictData: savedShowHide,
+  //     }),
+  //     this.dictDataRepository.create({
+  //       type: savedShowHide.type,
+  //       label: '隐藏',
+  //       value: '0',
+  //       sortOrder: 2,
+  //       isDefault: 'N',
+  //       status: '1',
+  //       listClass: 'secondary',
+  //       remark: '',
+  //       createBy: 'auto_seed',
+  //       updateBy: 'auto_seed',
+  //       dict: savedShowHide,
+  //       dictData: savedShowHide,
+  //     }),
+  //   ];
+
+  //   await this.dictDataRepository.save(dictDataEntities);
+  // }
 
   /**
    * 创建初始用户数据
@@ -221,4 +387,3 @@ export class DatabaseSeedService {
     await this.userRepository.save(user);
   }
 }
-
