@@ -33,7 +33,7 @@ export class DictService {
     let dict: SysDict | null = null;
     try {
       dict = await this.dictRepository.findOne({
-        where: { publicId, type, status: '1' },
+        where: { publicId, type },
         relations: { dictData: true },
       });
     } catch (e: any) {
