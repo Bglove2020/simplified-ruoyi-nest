@@ -1,6 +1,6 @@
 # RuoYi-Nest 项目文档
 
-基于 NestJS 11 + TypeScript 5.7 + TypeORM 0.3 + MySQL 8 + class-validator + class-transformer + JWT + Pino 日志系统 构建的企业级服务端后台管理系统，采用模块化分层架构，支持 RBAC 权限、数据校验、结构化日志与多环境配置，适合中后台场景与前后端分离项目协作开发。
+基于 NestJS 11 + TypeScript 5.7 + TypeORM 0.3 + MySQL 8 + class-validator + class-transformer + JWT + Pino 日志系统 构建的企业级服务端后台管理系统，采用模块化分层架构，支持 RBAC 权限、数据校验、结构化日志与多环境配置。
 
 ## 目录
 
