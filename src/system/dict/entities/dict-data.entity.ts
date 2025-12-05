@@ -43,7 +43,7 @@ export class SysDictData {
     type: 'varchar',
     length: 260,
     asExpression:
-      "case when deleted_at is null then label else concat(label, '#', public_id) end",
+      "case when deleted_at is null then concat(label,'#',dict_id) else concat(label, '#', public_id) end",
     generatedType: 'VIRTUAL',
     select: false,
     insert: false,
@@ -63,7 +63,7 @@ export class SysDictData {
     type: 'varchar',
     length: 260,
     asExpression:
-      "case when deleted_at is null then value else concat(value, '#', public_id) end",
+      "case when deleted_at is null then concat(value,'#',dict_id) else concat(value, '#', public_id) end",
     generatedType: 'VIRTUAL',
     select: false,
     insert: false,

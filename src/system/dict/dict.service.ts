@@ -33,7 +33,7 @@ export class DictService {
     let dict: SysDict | null = null;
     try {
       dict = await this.dictRepository.findOne({
-        where: { publicId, type: type },
+        where: { publicId, type, status: '1' },
         relations: { dictData: true },
       });
     } catch (e: any) {
@@ -51,6 +51,7 @@ export class DictService {
     try {
       dict = await this.dictRepository.findOne({
         where: { publicId },
+        relations: { dictData: true },
       });
     } catch (e: any) {
       throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
@@ -66,7 +67,7 @@ export class DictService {
     let dict: SysDict | null = null;
     try {
       dict = await this.dictRepository.findOne({
-        where: { type: type },
+        where: { type: type, status: '1' },
       });
     } catch (e: any) {
       throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
@@ -86,22 +87,6 @@ export class DictService {
       throw new BadRequestException({ msg: '数据库保存错误', code: 400 });
     }
   }
-
-  // async getData(publicId: string): Promise<SysDictData> {
-  //   let dictData: SysDictData | null = null;
-  //   try {
-  //     dictData = await this.dictDataRepository.findOne({
-  //       where: { publicId },
-  //       relations: { dictType: true },
-  //     });
-  //   } catch (e: any) {
-  //     throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
-  //   }
-  //   if (!dictData) {
-  //     throw new BadRequestException({ msg: '字典数据不存在', code: 400 });
-  //   }
-  //   return dictData;
-  // }
 
   // 已更新
   async update(dto: UpdateDictTypeDto): Promise<void> {
