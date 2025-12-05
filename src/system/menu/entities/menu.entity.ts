@@ -15,7 +15,7 @@ import { SysRole } from '@/system/role/entities/role.entity';
 import { randomUUID } from 'node:crypto';
 
 @Entity('sys_menu')
-@Index('uniq_sys_menu_name_active', ['activeName'], { unique: true })
+// @Index('uniq_sys_menu_name_active', ['activeName'], { unique: true })
 @Index('uniq_sys_menu_path_active', ['activePath'], { unique: true })
 @Index('uniq_sys_menu_perms_active', ['activePerms'], { unique: true })
 export class SysMenu {
@@ -34,16 +34,16 @@ export class SysMenu {
   @Column({ length: 50, comment: '菜单名称' })
   name: string;
 
-  @Column({
-    name: 'active_name',
-    type: 'varchar',
-    length: 120,
-    asExpression:
-      "case when deleted_at is null then name else concat(name, '#', public_id) end",
-    generatedType: 'VIRTUAL',
-    select: false,
-  })
-  activeName: string | null;
+  // @Column({
+  //   name: 'active_name',
+  //   type: 'varchar',
+  //   length: 120,
+  //   asExpression:
+  //     "case when deleted_at is null then name else concat(name, '#', public_id) end",
+  //   generatedType: 'VIRTUAL',
+  //   select: false,
+  // })
+  // activeName: string | null;
 
   @Column({ name: 'parent_id', default: 0, comment: '父菜单ID' })
   parentId: number;
@@ -54,7 +54,13 @@ export class SysMenu {
   @Column({ name: 'sort_order', type: 'int', comment: '显示顺序' })
   sortOrder: number;
 
-  @Column({ name: 'path', type: 'varchar', length: 200, comment: '路由地址', nullable: true })
+  @Column({
+    name: 'path',
+    type: 'varchar',
+    length: 200,
+    comment: '路由地址',
+    nullable: true,
+  })
   path: string | null;
 
   @Column({
@@ -101,10 +107,20 @@ export class SysMenu {
   })
   status: string;
 
-  @DeleteDateColumn({ name: 'deleted_at', type: 'datetime', comment: '删除时间' })
+  @DeleteDateColumn({
+    name: 'deleted_at',
+    type: 'datetime',
+    comment: '删除时间',
+  })
   deletedAt: Date | null;
 
-  @Column({ name: 'perms', type: 'varchar', length: 100, nullable: true, comment: '权限标识' })
+  @Column({
+    name: 'perms',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+    comment: '权限标识',
+  })
   perms: string | null;
 
   @Column({
@@ -125,7 +141,11 @@ export class SysMenu {
   @Column({ name: 'create_by', length: 64, default: '', comment: '创建者' })
   createBy: string;
 
-  @CreateDateColumn({ name: 'create_time', type: 'datetime', comment: '创建时间' })
+  @CreateDateColumn({
+    name: 'create_time',
+    type: 'datetime',
+    comment: '创建时间',
+  })
   createTime: Date;
 
   @Column({ name: 'update_by', length: 64, default: '', comment: '更新者' })

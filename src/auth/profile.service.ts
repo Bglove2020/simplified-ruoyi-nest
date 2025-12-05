@@ -1,6 +1,10 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In, Not } from 'typeorm';
 import { SysUser } from '@/system/user/entities/user.entity';
 import { SysMenu } from '@/system/menu/entities/menu.entity';
 import { AlsService } from '@/common/als/als.service';
@@ -54,7 +58,7 @@ export class ProfileService {
     const userPublicId = this.als.getUserPublicId()!;
 
     let user: SysUser | null = null;
-    try{
+    try {
       user = await this.userRepository.findOne({
         where: { publicId: userPublicId },
         relations: { roles: true },
@@ -73,8 +77,8 @@ export class ProfileService {
           },
         },
       });
-    }catch(e: any){
-      throw new BadRequestException({msg: '数据库查询错误', code: 400});
+    } catch (e: any) {
+      throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
     }
     if (!user) {
       throw new UnauthorizedException({ msg: '用户不存在或已删除', code: 401 });
@@ -86,20 +90,21 @@ export class ProfileService {
     let permissions: string[] = [];
     if (isAdmin) {
       permissions = ['*:*:*'];
-    } 
-    else if (user.roles.length > 0) {
+    } else if (user.roles.length > 0) {
       const roleIds = user.roles.map((role) => role.id);
       let menus: SysMenu[] = [];
-      try{
+      try {
         menus = await this.menuRepository
-        .createQueryBuilder('menu')
-        .innerJoin('menu.roles', 'role', 'role.id IN (:...roleIds)', { roleIds })
-        .where('menu.status = :status', { status: '1' })
-        .andWhere('menu.deletedAt IS NULL')
-        .select(['menu.perms'])
-        .getMany();
-      }catch(e: any){
-        throw new BadRequestException({msg: '数据库查询错误', code: 400});
+          .createQueryBuilder('menu')
+          .innerJoin('menu.roles', 'role', 'role.id IN (:...roleIds)', {
+            roleIds,
+          })
+          .where('menu.status = :status', { status: '1' })
+          .andWhere('menu.deletedAt IS NULL')
+          .select(['menu.perms'])
+          .getMany();
+      } catch (e: any) {
+        throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
       }
 
       // Drop empty permission strings to avoid polluting the permission list
@@ -131,18 +136,18 @@ export class ProfileService {
     const userPublicId = this.als.getUserPublicId()!;
 
     let user: SysUser | null = null;
-    try{
+    try {
       user = await this.userRepository.findOne({
-      where: { publicId: userPublicId },
-      relations: { roles: true },
-      select: {
-        id: true,
-        publicId: true,
-        roles: { id: true, roleKey: true },
-      },
-    });
-    }catch(e: any){
-      throw new BadRequestException({msg: '数据库查询错误', code: 400});
+        where: { publicId: userPublicId },
+        relations: { roles: true },
+        select: {
+          id: true,
+          publicId: true,
+          roles: { id: true, roleKey: true },
+        },
+      });
+    } catch (e: any) {
+      throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
     }
     if (!user) {
       throw new UnauthorizedException({ msg: '用户不存在或已删除', code: 401 });
@@ -161,7 +166,9 @@ export class ProfileService {
       const roleIds = user.roles.map((role) => role.id);
       menus = await this.menuRepository
         .createQueryBuilder('menu')
-        .innerJoin('menu.roles', 'role', 'role.id IN (:...roleIds)', { roleIds })
+        .innerJoin('menu.roles', 'role', 'role.id IN (:...roleIds)', {
+          roleIds,
+        })
         .where('menu.status = :status', { status: '1' })
         .andWhere('menu.deletedAt IS NULL')
         .orderBy('menu.parentId', 'ASC')
@@ -171,21 +178,23 @@ export class ProfileService {
     }
 
     // 这里是路由接口，只有菜单menu才对应有组件路由，并且不能是外链
-    const menuNodes = menus.filter((menu) => menu.menuType === 'C' && menu.isFrame === '0').map((menu) => this.toRouterItem(menu));
-    return menuNodes
+    const menuNodes = menus
+      .filter((menu) => menu.menuType === 'C' && menu.isFrame === '0')
+      .map((menu) => this.toRouterItem(menu));
+    return menuNodes;
   }
 
-  async getSideBarMenus(){
+  async getSideBarMenus() {
     const userPublicId = this.als.getUserPublicId()!;
 
     let user: SysUser | null = null;
-    try{
+    try {
       user = await this.userRepository.findOne({
         where: { publicId: userPublicId },
         relations: { roles: true },
       });
-    }catch(e: any){
-      throw new BadRequestException({msg: '数据库查询错误', code: 400});
+    } catch (e: any) {
+      throw new BadRequestException({ msg: '数据库查询错误', code: 400 });
     }
     if (!user) {
       throw new UnauthorizedException({ msg: '用户不存在或已删除', code: 401 });
@@ -197,14 +206,17 @@ export class ProfileService {
     let menus: SysMenu[] = [];
     if (isAdmin) {
       menus = await this.menuRepository.find({
-        where: { status: '1' },
+        // 示例1: menuType 等于 'M' 或 'C' 中的一个
+        where: { status: '1', menuType: In(['M', 'C']) },
         order: { parentId: 'ASC', sortOrder: 'ASC' },
       });
     } else if (user.roles.length > 0) {
       const roleIds = user.roles.map((role) => role.id);
       menus = await this.menuRepository
         .createQueryBuilder('menu')
-        .innerJoin('menu.roles', 'role', 'role.id IN (:...roleIds)', { roleIds })
+        .innerJoin('menu.roles', 'role', 'role.id IN (:...roleIds)', {
+          roleIds,
+        })
         .where('menu.status = :status', { status: '1' })
         .andWhere('menu.deletedAt IS NULL')
         .orderBy('menu.parentId', 'ASC')
@@ -224,14 +236,14 @@ export class ProfileService {
     return Array.from(deduped.values());
   }
 
-  private toRouterItem(menu: SysMenu){
+  private toRouterItem(menu: SysMenu) {
     return {
       name: menu.name,
       path: menu.path!,
     };
   }
 
-  private toSideBarItem(menu: SysMenu){
+  private toSideBarItem(menu: SysMenu) {
     return {
       title: menu.name,
       url: menu.path,
